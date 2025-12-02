@@ -68,7 +68,9 @@ describe('SweetisticsClient', () => {
 
     expect(result.success).toBe(true);
     expect(result.tweet?.id).toBe('1');
-    expect(fetchMock).toHaveBeenCalledWith('https://api.example.com/api/twitter/tweet/1', expect.any(Object));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.example.com/api/twitter/tweet/1');
+    expect((init as RequestInit).headers).toMatchObject({ authorization: 'Bearer sweet-test' });
   });
 
   it('fetches replies', async () => {
@@ -87,10 +89,9 @@ describe('SweetisticsClient', () => {
 
     expect(result.success).toBe(true);
     expect(result.tweets?.[0].id).toBe('2');
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.example.com/api/twitter/tweet/1/replies',
-      expect.any(Object),
-    );
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.example.com/api/twitter/tweet/1/replies');
+    expect((init as RequestInit).headers).toMatchObject({ authorization: 'Bearer sweet-test' });
   });
 
   it('fetches thread', async () => {
@@ -109,10 +110,9 @@ describe('SweetisticsClient', () => {
 
     expect(result.success).toBe(true);
     expect(result.tweets?.length).toBe(1);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.example.com/api/twitter/tweet/1/thread',
-      expect.any(Object),
-    );
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.example.com/api/twitter/tweet/1/thread');
+    expect((init as RequestInit).headers).toMatchObject({ authorization: 'Bearer sweet-test' });
   });
 
   it('searches tweets', async () => {
@@ -133,6 +133,8 @@ describe('SweetisticsClient', () => {
     expect(result.tweets?.[0].id).toBe('3');
     const [url] = fetchMock.mock.calls[0];
     expect(url).toBe('https://api.example.com/api/twitter/search?q=needle&count=5');
+    const [, init] = fetchMock.mock.calls[0];
+    expect((init as RequestInit).headers).toMatchObject({ authorization: 'Bearer sweet-test' });
   });
 
   it('propagates Sweetistics error message', async () => {
