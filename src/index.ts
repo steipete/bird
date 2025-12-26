@@ -21,6 +21,7 @@ import { extractTweetId } from './lib/extract-tweet-id.js';
 import { mentionsQueryFromUserOption, normalizeHandle } from './lib/normalize-handle.js';
 import {
   formatStatsLine,
+  formatTweetUrlLine,
   labelPrefix,
   type OutputConfig,
   resolveOutputConfigFromArgv,
@@ -403,7 +404,7 @@ program
 
     if (result.success) {
       console.log(`${p('ok')}Tweet posted successfully!`);
-      console.log(`${l('url')}https://x.com/i/status/${result.tweetId}`);
+      console.log(formatTweetUrlLine(result.tweetId, output));
     } else {
       console.error(`${p('err')}Failed to post tweet: ${result.error}`);
       process.exit(1);
@@ -464,7 +465,7 @@ program
 
     if (result.success) {
       console.log(`${p('ok')}Reply posted successfully!`);
-      console.log(`${l('url')}https://x.com/i/status/${result.tweetId}`);
+      console.log(formatTweetUrlLine(result.tweetId, output));
     } else {
       console.error(`${p('err')}Failed to post reply: ${result.error}`);
       process.exit(1);

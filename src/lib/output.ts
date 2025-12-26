@@ -76,3 +76,11 @@ export function formatStatsLine(
   if (!cfg.emoji) return `Likes ${likeCount}  Retweets ${retweetCount}  Replies ${replyCount}`;
   return `❤️ ${likeCount}  🔁 ${retweetCount}  💬 ${replyCount}`;
 }
+
+export function formatTweetUrl(tweetId: string): string {
+  return `https://x.com/i/status/${tweetId}`;
+}
+
+export function formatTweetUrlLine(tweetId: string, cfg: OutputConfig): string {
+  return `${labelPrefix('url', cfg)}${formatTweetUrl(tweetId)}`;
+}

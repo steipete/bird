@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatStatsLine,
+  formatTweetUrlLine,
   labelPrefix,
   resolveOutputConfigFromArgv,
   resolveOutputConfigFromCommander,
@@ -61,5 +62,14 @@ describe('output', () => {
     );
     expect(formatStatsLine(stats, { plain: false, emoji: false, color: false })).toBe('Likes 0  Retweets 0  Replies 2');
     expect(formatStatsLine(stats, { plain: false, emoji: true, color: false })).toBe('❤️ 0  🔁 0  💬 2');
+  });
+
+  it('always includes tweet URL in all modes', () => {
+    const id = '1234567890';
+    const url = `https://x.com/i/status/${id}`;
+
+    expect(formatTweetUrlLine(id, { plain: true, emoji: false, color: false })).toContain(url);
+    expect(formatTweetUrlLine(id, { plain: false, emoji: false, color: false })).toContain(url);
+    expect(formatTweetUrlLine(id, { plain: false, emoji: true, color: false })).toContain(url);
   });
 });
