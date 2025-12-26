@@ -1,8 +1,6 @@
 # Changelog
 
-## 0.3.1 — Unreleased
-
-## 0.3.0 — 2025-12-26
+## 0.3.0 — Unreleased
 
 ### Added
 - Safari cookie extraction (`Cookies.binarycookies`) + `allowSafari` config toggle.
