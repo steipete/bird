@@ -688,13 +688,13 @@ program
     if (!query) {
       const who = await client.getCurrentUser();
       const handle = normalizeHandle(who.user?.username);
-      if (!handle) {
+      if (handle) {
+        query = `@${handle}`;
+      } else {
         console.error(
           `${p('err')}Could not determine current user (${who.error ?? 'Unknown error'}). Use --user <handle>.`,
         );
         process.exit(1);
-      } else {
-        query = `@${handle}`;
       }
     }
 
