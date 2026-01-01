@@ -171,6 +171,34 @@ export function extractTweetImages(result: GraphqlTweetResult | undefined): stri
   return uniqueOrdered(images);
 }
 
+export function extractTweetVideos(result: GraphqlTweetResult | undefined): string[] | undefined {
+  const media = result?.legacy?.extended_entities?.media ?? result?.legacy?.entities?.media;
+  if (!Array.isArray(media)) {
+    return undefined;
+  }
+
+  const candidates = media
+    .filter((item) => item?.type === 'video' || item?.type === 'animated_gif')
+    .flatMap((item) => item.video_info?.variants ?? []);
+
+  const mp4Variants = candidates.filter((variant) => variant?.content_type === 'video/mp4');
+  if (mp4Variants.length === 0) {
+    return undefined;
+  }
+
+  mp4Variants.sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
+
+  const urls = mp4Variants
+    .map((variant) => variant.url)
+    .filter((url): url is string => typeof url === 'string' && url.length > 0);
+
+  if (urls.length === 0) {
+    return undefined;
+  }
+
+  return uniqueOrdered(urls);
+}
+
 export function unwrapTweetResult(result: GraphqlTweetResult | undefined): GraphqlTweetResult | undefined {
   if (!result) {
     return undefined;
@@ -198,6 +226,7 @@ export function mapTweetResult(result: GraphqlTweetResult | undefined, quoteDept
   }
 
   const images = extractTweetImages(result);
+  const videos = extractTweetVideos(result);
 
   let quotedTweet: TweetData | undefined;
   if (quoteDepth > 0) {
@@ -217,6 +246,7 @@ export function mapTweetResult(result: GraphqlTweetResult | undefined, quoteDept
     conversationId: result.legacy?.conversation_id_str,
     inReplyToStatusId: result.legacy?.in_reply_to_status_id_str ?? undefined,
     images: images && images.length > 0 ? images : undefined,
+    videos: videos && videos.length > 0 ? videos : undefined,
     author: {
       username,
       name: name || username,

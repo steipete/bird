@@ -215,6 +215,7 @@ export interface TweetData {
   conversationId?: string;
   inReplyToStatusId?: string;
   images?: string[];
+  videos?: string[];
   // Optional quoted tweet; depth controlled by quoteDepth (default: 1).
   quotedTweet?: TweetData;
 }
