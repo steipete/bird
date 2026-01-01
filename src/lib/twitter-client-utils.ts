@@ -153,6 +153,24 @@ export function extractTweetText(result: GraphqlTweetResult | undefined): string
   return extractArticleText(result) ?? extractNoteTweetText(result) ?? firstText(result?.legacy?.full_text);
 }
 
+export function extractTweetImages(result: GraphqlTweetResult | undefined): string[] | undefined {
+  const media = result?.legacy?.extended_entities?.media ?? result?.legacy?.entities?.media;
+  if (!Array.isArray(media)) {
+    return undefined;
+  }
+
+  const images = media
+    .filter((item) => item?.type === 'photo')
+    .map((item) => item.media_url_https ?? item.media_url)
+    .filter((url): url is string => typeof url === 'string' && url.length > 0);
+
+  if (images.length === 0) {
+    return undefined;
+  }
+
+  return uniqueOrdered(images);
+}
+
 export function unwrapTweetResult(result: GraphqlTweetResult | undefined): GraphqlTweetResult | undefined {
   if (!result) {
     return undefined;
@@ -179,6 +197,8 @@ export function mapTweetResult(result: GraphqlTweetResult | undefined, quoteDept
     return undefined;
   }
 
+  const images = extractTweetImages(result);
+
   let quotedTweet: TweetData | undefined;
   if (quoteDepth > 0) {
     const quotedResult = unwrapTweetResult(result.quoted_status_result?.result);
@@ -196,6 +216,7 @@ export function mapTweetResult(result: GraphqlTweetResult | undefined, quoteDept
     likeCount: result.legacy?.favorite_count,
     conversationId: result.legacy?.conversation_id_str,
     inReplyToStatusId: result.legacy?.in_reply_to_status_id_str ?? undefined,
+    images: images && images.length > 0 ? images : undefined,
     author: {
       username,
       name: name || username,

@@ -11,6 +11,38 @@ export type GraphqlTweetResult = {
     favorite_count?: number;
     conversation_id_str?: string;
     in_reply_to_status_id_str?: string | null;
+    entities?: {
+      media?: Array<{
+        id_str?: string;
+        type?: string;
+        media_url_https?: string;
+        media_url?: string;
+        url?: string;
+        display_url?: string;
+        expanded_url?: string;
+        ext_alt_text?: string;
+        sizes?: Record<string, { w?: number; h?: number; resize?: string }>;
+        video_info?: {
+          variants?: Array<{ content_type?: string; url?: string; bitrate?: number }>;
+        };
+      }>;
+    };
+    extended_entities?: {
+      media?: Array<{
+        id_str?: string;
+        type?: string;
+        media_url_https?: string;
+        media_url?: string;
+        url?: string;
+        display_url?: string;
+        expanded_url?: string;
+        ext_alt_text?: string;
+        sizes?: Record<string, { w?: number; h?: number; resize?: string }>;
+        video_info?: {
+          variants?: Array<{ content_type?: string; url?: string; bitrate?: number }>;
+        };
+      }>;
+    };
   };
   core?: {
     user_results?: {
@@ -182,6 +214,7 @@ export interface TweetData {
   likeCount?: number;
   conversationId?: string;
   inReplyToStatusId?: string;
+  images?: string[];
   // Optional quoted tweet; depth controlled by quoteDepth (default: 1).
   quotedTweet?: TweetData;
 }
