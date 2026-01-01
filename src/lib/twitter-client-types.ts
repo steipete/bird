@@ -198,6 +198,22 @@ export interface SearchResult {
   error?: string;
 }
 
+export interface BookmarksResult {
+  success: boolean;
+  tweets?: TweetData[];
+  nextCursor?: string;
+  errors?: string[];
+  error?: string;
+}
+
+export interface LikesResult {
+  success: boolean;
+  tweets?: TweetData[];
+  nextCursor?: string;
+  errors?: string[];
+  error?: string;
+}
+
 export interface CurrentUserResult {
   success: boolean;
   user?: {

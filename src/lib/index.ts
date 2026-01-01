@@ -9,9 +9,11 @@ export {
 } from './cookies.js';
 export { runtimeQueryIds } from './runtime-query-ids.js';
 export {
+  type BookmarksResult,
   type CurrentUserResult,
   type FollowingResult,
   type GetTweetResult,
+  type LikesResult,
   type SearchResult,
   type TweetData,
   TwitterClient,

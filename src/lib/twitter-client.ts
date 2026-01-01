@@ -22,9 +22,11 @@ const MixedTwitterClient = withUsers(
 export class TwitterClient extends MixedTwitterClient {}
 
 export type {
+  BookmarksResult,
   CurrentUserResult,
   FollowingResult,
   GetTweetResult,
+  LikesResult,
   SearchResult,
   TweetData,
   TweetResult,

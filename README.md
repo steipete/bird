@@ -51,9 +51,21 @@ bird mentions --user @steipete -n 5
 # Bookmarks
 bird bookmarks -n 5
 bird bookmarks --folder-id 123456789123456789 -n 5 # https://x.com/i/bookmarks/<folder-id>
+bird bookmarks -n 20 --json-with-cursor
+bird bookmarks -n 20 --cursor <nextCursor> --json-with-cursor
+
+# Bookmarks pagination loop (requires jq)
+next=""
+for i in 1 2 3; do
+  page=$(bird bookmarks -n 20 ${next:+--cursor "$next"} --json-with-cursor)
+  next=$(echo "$page" | jq -r '.nextCursor // empty')
+  [ -z "$next" ] && break
+done
 
 # Likes
 bird likes -n 5
+bird likes -n 20 --json-with-cursor
+bird likes -n 20 --cursor <nextCursor> --json-with-cursor
 
 # Following (who you follow)
 bird following -n 20
@@ -91,8 +103,8 @@ const result = await client.search('from:steipete', 50);
 - `bird thread <tweet-id-or-url> [--json]` — show the full conversation thread.
 - `bird search "<query>" [-n count] [--json]` — search for tweets matching a query.
 - `bird mentions [-n count] [--user @handle] [--json]` — find tweets mentioning a user (defaults to the authenticated user).
-- `bird bookmarks [-n count] [--folder-id id] [--json]` — list your bookmarked tweets (or a specific bookmark folder).
-- `bird likes [-n count] [--json]` — list your liked tweets.
+- `bird bookmarks [-n count] [--folder-id id] [--cursor cursor] [--json|--json-with-cursor]` — list your bookmarked tweets (or a specific bookmark folder).
+- `bird likes [-n count] [--cursor cursor] [--json|--json-with-cursor]` — list your liked tweets.
 - `bird following [--user <userId>] [-n count] [--json]` — list users that you (or another user) follow.
 - `bird followers [--user <userId>] [-n count] [--json]` — list users that follow you (or another user).
 - `bird whoami` — print which Twitter account your cookies belong to.
@@ -161,6 +173,8 @@ Environment shortcuts:
 ## Output
 
 - `--json` prints raw tweet objects for read/replies/thread/search/mentions/bookmarks/likes.
+- `--json-with-cursor` prints `{ tweets, nextCursor, errors }` for `bookmarks` and `likes` pagination.
+- Bookmarks and likes auto-paginate internally to reach the requested count. Use `--cursor` for manual pagination control.
 - `read` returns full text for Notes and Articles when present.
 - Use `--plain` for stable, script-friendly output (no emoji, no color).
 

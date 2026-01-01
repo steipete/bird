@@ -376,4 +376,138 @@ describe('TwitterClient likes', () => {
     expect(result.error).toBe('no user');
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it('includes cursor in likes variables when provided', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          user: {
+            result: {
+              timeline: {
+                timeline: {
+                  instructions: [
+                    {
+                      entries: [
+                        {
+                          content: {
+                            itemContent: {
+                              tweet_results: {
+                                result: {
+                                  rest_id: '1',
+                                  legacy: {
+                                    full_text: 'liked',
+                                    created_at: '2024-01-01T00:00:00Z',
+                                    reply_count: 0,
+                                    retweet_count: 0,
+                                    favorite_count: 0,
+                                    conversation_id_str: '1',
+                                  },
+                                  core: {
+                                    user_results: {
+                                      result: {
+                                        rest_id: 'u1',
+                                        legacy: { screen_name: 'root', name: 'Root' },
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    const client = new TwitterClient({ cookies: validCookies });
+    const clientPrivate = client as unknown as TwitterClientPrivate;
+    clientPrivate.getCurrentUser = async () => ({
+      success: true,
+      user: { id: '42', username: 'tester', name: 'Tester' },
+    });
+    clientPrivate.getLikesQueryIds = async () => ['test'];
+
+    const result = await client.getLikes(2, 'cursor-1');
+
+    expect(result.success).toBe(true);
+
+    const [url] = mockFetch.mock.calls[0];
+    const parsedVars = JSON.parse(new URL(url as string).searchParams.get('variables') as string);
+    expect(parsedVars.cursor).toBe('cursor-1');
+  });
+
+  it('returns nextCursor from likes response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          user: {
+            result: {
+              timeline: {
+                timeline: {
+                  instructions: [
+                    {
+                      entries: [
+                        { content: { cursorType: 'Bottom', value: 'next-cursor-123' } },
+                        {
+                          content: {
+                            itemContent: {
+                              tweet_results: {
+                                result: {
+                                  rest_id: '1',
+                                  legacy: {
+                                    full_text: 'liked',
+                                    created_at: '2024-01-01T00:00:00Z',
+                                    reply_count: 0,
+                                    retweet_count: 0,
+                                    favorite_count: 0,
+                                    conversation_id_str: '1',
+                                  },
+                                  core: {
+                                    user_results: {
+                                      result: {
+                                        rest_id: 'u1',
+                                        legacy: { screen_name: 'root', name: 'Root' },
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    const client = new TwitterClient({ cookies: validCookies });
+    const clientPrivate = client as unknown as TwitterClientPrivate;
+    clientPrivate.getCurrentUser = async () => ({
+      success: true,
+      user: { id: '42', username: 'tester', name: 'Tester' },
+    });
+    clientPrivate.getLikesQueryIds = async () => ['test'];
+
+    const result = await client.getLikes(1);
+
+    expect(result.success).toBe(true);
+    expect(result.nextCursor).toBe('next-cursor-123');
+  });
 });

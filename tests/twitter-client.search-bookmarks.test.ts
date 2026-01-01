@@ -345,6 +345,33 @@ describe('TwitterClient search', () => {
 
 describe('TwitterClient bookmarks', () => {
   let mockFetch: ReturnType<typeof vi.fn>;
+  const makeBookmarkEntry = (id: string) => ({
+    content: {
+      itemContent: {
+        tweet_results: {
+          result: {
+            rest_id: id,
+            legacy: {
+              full_text: 'saved',
+              created_at: '2024-01-01T00:00:00Z',
+              reply_count: 0,
+              retweet_count: 0,
+              favorite_count: 0,
+              conversation_id_str: id,
+            },
+            core: {
+              user_results: {
+                result: {
+                  rest_id: `u${id}`,
+                  legacy: { screen_name: 'root', name: 'Root' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 
   beforeEach(() => {
     mockFetch = vi.fn();
@@ -361,35 +388,7 @@ describe('TwitterClient bookmarks', () => {
             timeline: {
               instructions: [
                 {
-                  entries: [
-                    {
-                      content: {
-                        itemContent: {
-                          tweet_results: {
-                            result: {
-                              rest_id: '1',
-                              legacy: {
-                                full_text: 'saved',
-                                created_at: '2024-01-01T00:00:00Z',
-                                reply_count: 0,
-                                retweet_count: 0,
-                                favorite_count: 0,
-                                conversation_id_str: '1',
-                              },
-                              core: {
-                                user_results: {
-                                  result: {
-                                    rest_id: 'u1',
-                                    legacy: { screen_name: 'root', name: 'Root' },
-                                  },
-                                },
-                              },
-                            },
-                          },
-                        },
-                      },
-                    },
-                  ],
+                  entries: [makeBookmarkEntry('1')],
                 },
               ],
             },
@@ -412,6 +411,92 @@ describe('TwitterClient bookmarks', () => {
     expect(parsedVars.count).toBe(2);
     const parsedFeatures = JSON.parse(new URL(url as string).searchParams.get('features') as string);
     expect(parsedFeatures.graphql_timeline_v2_bookmark_timeline).toBe(true);
+  });
+
+  it('includes cursor in bookmarks variables when provided', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          bookmark_timeline_v2: {
+            timeline: {
+              instructions: [
+                {
+                  entries: [makeBookmarkEntry('1')],
+                },
+              ],
+            },
+          },
+        },
+      }),
+    });
+
+    const client = new TwitterClient({ cookies: validCookies });
+    const result = await client.getBookmarks(2, 'cursor-1');
+
+    expect(result.success).toBe(true);
+
+    const [url] = mockFetch.mock.calls[0];
+    const parsedVars = JSON.parse(new URL(url as string).searchParams.get('variables') as string);
+    expect(parsedVars.cursor).toBe('cursor-1');
+  });
+
+  it('returns nextCursor from the last bottom cursor entry', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          bookmark_timeline_v2: {
+            timeline: {
+              instructions: [
+                {
+                  entries: [{ content: { cursorType: 'Bottom', value: 'cursor-1' } }, makeBookmarkEntry('1')],
+                },
+                {
+                  entries: [{ content: { cursorType: 'Bottom', value: 'cursor-2' } }],
+                },
+              ],
+            },
+          },
+        },
+      }),
+    });
+
+    const client = new TwitterClient({ cookies: validCookies });
+    const result = await client.getBookmarks(1);
+
+    expect(result.success).toBe(true);
+    expect(result.nextCursor).toBe('cursor-2');
+  });
+
+  it('returns partial errors when timeline data is present', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        errors: [{ message: 'Query: Unspecified' }],
+        data: {
+          bookmark_timeline_v2: {
+            timeline: {
+              instructions: [
+                {
+                  entries: [makeBookmarkEntry('1')],
+                },
+              ],
+            },
+          },
+        },
+      }),
+    });
+
+    const client = new TwitterClient({ cookies: validCookies });
+    const result = await client.getBookmarks(1);
+
+    expect(result.success).toBe(true);
+    expect(result.errors).toEqual(['Query: Unspecified']);
+    expect(result.tweets?.[0].id).toBe('1');
   });
 });
 

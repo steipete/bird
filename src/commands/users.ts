@@ -130,11 +130,14 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
     .description('Get your liked tweets')
     .option('-n, --count <number>', 'Number of likes to fetch', '20')
     .option('--json', 'Output as JSON')
-    .action(async (cmdOpts: { count?: string; json?: boolean }) => {
+    .option('--cursor <value>', 'Likes pagination cursor')
+    .option('--json-with-cursor', 'Output JSON with tweets + nextCursor')
+    .action(async (cmdOpts: { count?: string; json?: boolean; jsonWithCursor?: boolean; cursor?: string }) => {
       const opts = program.opts();
       const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
       const quoteDepth = ctx.resolveQuoteDepthFromOptions(opts);
       const count = Number.parseInt(cmdOpts.count || '20', 10);
+      const jsonWithCursor = Boolean(cmdOpts.jsonWithCursor);
 
       const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
 
@@ -148,10 +151,19 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
       }
 
       const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
-      const result = await client.getLikes(count);
+      const result = await client.getLikes(count, cmdOpts.cursor);
 
       if (result.success && result.tweets) {
-        ctx.printTweets(result.tweets, { json: cmdOpts.json, emptyMessage: 'No liked tweets found.' });
+        if (jsonWithCursor) {
+          const payload = {
+            tweets: result.tweets,
+            nextCursor: result.nextCursor ?? null,
+            errors: result.errors ?? [],
+          };
+          console.log(JSON.stringify(payload, null, 2));
+        } else {
+          ctx.printTweets(result.tweets, { json: cmdOpts.json, emptyMessage: 'No liked tweets found.' });
+        }
       } else {
         console.error(`${ctx.p('err')}Failed to fetch likes: ${result.error}`);
         process.exit(1);
