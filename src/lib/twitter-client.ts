@@ -41,7 +41,18 @@ const QUERY_IDS: Record<OperationName, string> = {
 
 const TARGET_QUERY_ID_OPERATIONS = Object.keys(FALLBACK_QUERY_IDS) as Array<OperationName>;
 
+function normalizeQuoteDepth(value?: number): number {
+  if (value === undefined || value === null) {
+    return 1;
+  }
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+  return Math.max(0, Math.floor(value));
+}
+
 type GraphqlTweetResult = {
+  __typename?: string;
   rest_id?: string;
   legacy?: {
     full_text?: string;
@@ -186,6 +197,10 @@ type GraphqlTweetResult = {
       }>;
     }>;
   };
+  tweet?: GraphqlTweetResult;
+  quoted_status_result?: {
+    result?: GraphqlTweetResult;
+  };
 };
 
 export type TweetResult =
@@ -218,6 +233,8 @@ export interface TweetData {
   likeCount?: number;
   conversationId?: string;
   inReplyToStatusId?: string;
+  // Optional quoted tweet; depth controlled by quoteDepth (default: 1).
+  quotedTweet?: TweetData;
 }
 
 export interface GetTweetResult {
@@ -246,6 +263,8 @@ export interface TwitterClientOptions {
   cookies: TwitterCookies;
   userAgent?: string;
   timeoutMs?: number;
+  // Max depth for quoted tweets (0 disables). Defaults to 1.
+  quoteDepth?: number;
 }
 
 interface CreateTweetResponse {
@@ -270,6 +289,7 @@ export class TwitterClient {
   private cookieHeader: string;
   private userAgent: string;
   private timeoutMs?: number;
+  private quoteDepth: number;
   private clientUuid: string;
   private clientDeviceId: string;
   private clientUserId?: string;
@@ -285,6 +305,7 @@ export class TwitterClient {
       options.userAgent ||
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
     this.timeoutMs = options.timeoutMs;
+    this.quoteDepth = normalizeQuoteDepth(options.quoteDepth);
     this.clientUuid = randomUUID();
     this.clientDeviceId = randomUUID();
   }
@@ -711,7 +732,17 @@ export class TwitterClient {
     );
   }
 
-  private mapTweetResult(result: GraphqlTweetResult | undefined): TweetData | undefined {
+  private unwrapTweetResult(result: GraphqlTweetResult | undefined): GraphqlTweetResult | undefined {
+    if (!result) {
+      return undefined;
+    }
+    if (result.tweet) {
+      return result.tweet;
+    }
+    return result;
+  }
+
+  private mapTweetResult(result: GraphqlTweetResult | undefined, quoteDepth = this.quoteDepth): TweetData | undefined {
     const userResult = result?.core?.user_results?.result;
     const userLegacy = userResult?.legacy;
     const userCore = userResult?.core;
@@ -725,6 +756,14 @@ export class TwitterClient {
     const text = this.extractTweetText(result);
     if (!text) {
       return undefined;
+    }
+
+    let quotedTweet: TweetData | undefined;
+    if (quoteDepth > 0) {
+      const quotedResult = this.unwrapTweetResult(result.quoted_status_result?.result);
+      if (quotedResult) {
+        quotedTweet = this.mapTweetResult(quotedResult, quoteDepth - 1);
+      }
     }
 
     return {
@@ -741,6 +780,7 @@ export class TwitterClient {
         name: name || username,
       },
       authorId: userId,
+      quotedTweet,
     };
   }
 

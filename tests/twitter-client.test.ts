@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TwitterClient } from '../src/lib/twitter-client.js';
+import { type TweetData, TwitterClient } from '../src/lib/twitter-client.js';
 
 describe('TwitterClient', () => {
   const originalFetch = global.fetch;
@@ -957,6 +957,95 @@ describe('TwitterClient', () => {
       expect(result.success).toBe(true);
       expect(result.user?.username).toBe('fallback');
       expect(result.user?.id).toBe('999');
+    });
+  });
+
+  describe('quoted tweets', () => {
+    const makeTweetResult = (
+      id: string,
+      text: string,
+      username = `user${id}`,
+      name = `User ${id}`,
+    ): Record<string, unknown> => ({
+      rest_id: id,
+      legacy: {
+        full_text: text,
+        created_at: '2024-01-01T00:00:00Z',
+        reply_count: 0,
+        retweet_count: 0,
+        favorite_count: 0,
+        conversation_id_str: id,
+      },
+      core: {
+        user_results: {
+          result: {
+            rest_id: `u${id}`,
+            legacy: { screen_name: username, name },
+          },
+        },
+      },
+    });
+
+    it('includes one level of quoted tweet by default', () => {
+      const quoted = makeTweetResult('2', 'quoted');
+      const root = makeTweetResult('1', 'root');
+      root.quoted_status_result = { result: quoted };
+
+      const client = new TwitterClient({ cookies: validCookies });
+      const mapped = (
+        client as unknown as { mapTweetResult: (result: unknown) => TweetData | undefined }
+      ).mapTweetResult(root);
+
+      expect(mapped?.quotedTweet?.id).toBe('2');
+      expect(mapped?.quotedTweet?.quotedTweet).toBeUndefined();
+    });
+
+    it('honors quoteDepth = 0', () => {
+      const quoted = makeTweetResult('2', 'quoted');
+      const root = makeTweetResult('1', 'root');
+      root.quoted_status_result = { result: quoted };
+
+      const client = new TwitterClient({ cookies: validCookies, quoteDepth: 0 });
+      const mapped = (
+        client as unknown as { mapTweetResult: (result: unknown) => TweetData | undefined }
+      ).mapTweetResult(root);
+
+      expect(mapped?.quotedTweet).toBeUndefined();
+    });
+
+    it('recurses when quoteDepth > 1', () => {
+      const quoted2 = makeTweetResult('3', 'quoted2');
+      const quoted1 = makeTweetResult('2', 'quoted1');
+      quoted1.quoted_status_result = { result: quoted2 };
+      const root = makeTweetResult('1', 'root');
+      root.quoted_status_result = { result: quoted1 };
+
+      const client = new TwitterClient({ cookies: validCookies, quoteDepth: 2 });
+      const mapped = (
+        client as unknown as { mapTweetResult: (result: unknown) => TweetData | undefined }
+      ).mapTweetResult(root);
+
+      expect(mapped?.quotedTweet?.id).toBe('2');
+      expect(mapped?.quotedTweet?.quotedTweet?.id).toBe('3');
+      expect(mapped?.quotedTweet?.quotedTweet?.quotedTweet).toBeUndefined();
+    });
+
+    it('unwraps quoted tweet visibility wrappers', () => {
+      const quoted = makeTweetResult('2', 'quoted');
+      const root = makeTweetResult('1', 'root');
+      root.quoted_status_result = {
+        result: {
+          __typename: 'TweetWithVisibilityResults',
+          tweet: quoted,
+        },
+      };
+
+      const client = new TwitterClient({ cookies: validCookies });
+      const mapped = (
+        client as unknown as { mapTweetResult: (result: unknown) => TweetData | undefined }
+      ).mapTweetResult(root);
+
+      expect(mapped?.quotedTweet?.id).toBe('2');
     });
   });
 

@@ -78,6 +78,7 @@ bird query-ids --fresh
 
 Global options:
 - `--timeout <ms>`: abort requests after the given timeout (milliseconds).
+- `--quote-depth <n>`: max quoted tweet depth in JSON output (default: 1; 0 disables).
 - `--plain`: stable output (no emoji, no color).
 - `--no-emoji`: disable emoji output.
 - `--no-color`: disable ANSI colors (or set `NO_COLOR=1`).
@@ -117,18 +118,38 @@ Example `~/.config/bird/config.json5`:
   // Cookie source order for browser extraction (string or array)
   cookieSource: ["firefox", "safari"],
   firefoxProfile: "default-release",
-  timeoutMs: 20000
+  timeoutMs: 20000,
+  quoteDepth: 1
 }
 ```
 
 Environment shortcuts:
 - `BIRD_TIMEOUT_MS`
+- `BIRD_QUOTE_DEPTH`
 
 ## Output
 
 - `--json` prints raw tweet objects for read/replies/thread/search/mentions/bookmarks.
 - `read` returns full text for Notes and Articles when present.
 - Use `--plain` for stable, script-friendly output (no emoji, no color).
+
+### JSON Schema
+
+When using `--json`, tweet objects include:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Tweet ID |
+| `text` | string | Full tweet text (includes Note/Article content when present) |
+| `author` | object | `{ username, name }` |
+| `authorId` | string? | Author's user ID |
+| `createdAt` | string | Timestamp |
+| `replyCount` | number | Number of replies |
+| `retweetCount` | number | Number of retweets |
+| `likeCount` | number | Number of likes |
+| `conversationId` | string | Thread conversation ID |
+| `inReplyToStatusId` | string? | Parent tweet ID (present if this is a reply) |
+| `quotedTweet` | object? | Embedded quote tweet (same schema; depth controlled by `--quote-depth`) |
 
 ## Query IDs (GraphQL)
 

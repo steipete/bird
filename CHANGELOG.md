@@ -4,6 +4,7 @@
 
 ### Added
 - `likes` command to list your liked tweets (thanks @swairshah).
+- Quoted tweet data in JSON output + `--quote-depth` (thanks @alexknowshtml).
 
 ### Changed
 - Query ID updater now tracks the Likes GraphQL operation.
