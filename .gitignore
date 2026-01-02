@@ -20,6 +20,3 @@ bird
 *.tar
 *.tar.gz
 *.tgz
-bookmarks.json
-bookmarks_canary.json
-bookmarks_mid.json
