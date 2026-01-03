@@ -191,6 +191,15 @@ export type TweetResult =
       error: string;
     };
 
+export type BookmarkMutationResult =
+  | {
+      success: true;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
 export interface UploadMediaResult {
   success: boolean;
   mediaId?: string;

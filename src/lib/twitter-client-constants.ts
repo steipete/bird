@@ -17,6 +17,7 @@ export const FALLBACK_QUERY_IDS = {
   CreateTweet: 'TAJw1rBsjAtdNgTdlo2oeg',
   CreateRetweet: 'ojPdsZsimiJrUGLR1sjUtA',
   FavoriteTweet: 'lI07N6Otwv1PhnEgXILM7A',
+  DeleteBookmark: 'Wlmlj2-xzyS1GN3a6cj-mQ',
   TweetDetail: '97JF30KziU00483E_8elBA',
   SearchTimeline: 'M1jEez78PEfVfbQLvlWMvQ',
   UserArticlesTweets: '8zBy9h4L90aDL02RsBcCFg',
