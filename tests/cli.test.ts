@@ -95,8 +95,17 @@ describe('CLI utilities', () => {
       expect(extractListId('1234')).toBeNull();
     });
 
+    it('should accept minimum 5-digit IDs', () => {
+      expect(extractListId('12345')).toBe('12345');
+    });
+
     it('should trim whitespace from input', () => {
       expect(extractListId('  1234567890123456789  ')).toBe('1234567890123456789');
+    });
+
+    it('should extract ID from URL with fragment', () => {
+      const url = 'https://x.com/i/lists/1234567890123456789#section';
+      expect(extractListId(url)).toBe('1234567890123456789');
     });
   });
 });
