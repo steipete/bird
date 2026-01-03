@@ -45,7 +45,7 @@ function parseList(listResult: GraphqlListResult): TwitterList | null {
     description: listResult.description,
     memberCount: listResult.member_count,
     subscriberCount: listResult.subscriber_count,
-    isPrivate: listResult.mode === 'Private',
+    isPrivate: listResult.mode?.toLowerCase() === 'private',
     createdAt: listResult.created_at,
     owner: owner
       ? {
