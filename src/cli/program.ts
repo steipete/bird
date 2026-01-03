@@ -7,6 +7,7 @@ import { registerPostCommands } from '../commands/post.js';
 import { registerQueryIdsCommand } from '../commands/query-ids.js';
 import { registerReadCommands } from '../commands/read.js';
 import { registerSearchCommands } from '../commands/search.js';
+import { registerUnbookmarkCommand } from '../commands/unbookmark.js';
 import { registerUserCommands } from '../commands/users.js';
 import { getCliVersion } from '../lib/version.js';
 import { type CliContext, collectCookieSource } from './shared.js';
@@ -21,6 +22,7 @@ export const KNOWN_COMMANDS = new Set([
   'search',
   'mentions',
   'bookmarks',
+  'unbookmark',
   'following',
   'followers',
   'likes',
@@ -127,6 +129,7 @@ export function createProgram(ctx: CliContext): Command {
   registerReadCommands(program, ctx);
   registerSearchCommands(program, ctx);
   registerBookmarksCommand(program, ctx);
+  registerUnbookmarkCommand(program, ctx);
   registerListsCommand(program, ctx);
   registerUserCommands(program, ctx);
   registerCheckCommand(program, ctx);

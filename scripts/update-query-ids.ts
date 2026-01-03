@@ -11,6 +11,7 @@ const TARGET_OPERATIONS = [
   'CreateTweet',
   'CreateRetweet',
   'FavoriteTweet',
+  'DeleteBookmark',
   'TweetDetail',
   'SearchTimeline',
   'Bookmarks',
