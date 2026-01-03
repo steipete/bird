@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `--json-full` to include the raw GraphQL response in tweet JSON output (#19) — thanks @crcatala
+
 ## 0.5.1 — 2026-01-01
 
 ### Changed
