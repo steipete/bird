@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { registerBookmarksCommand } from '../commands/bookmarks.js';
 import { registerCheckCommand } from '../commands/check.js';
 import { registerHelpCommand } from '../commands/help.js';
+import { registerListsCommand } from '../commands/lists.js';
 import { registerPostCommands } from '../commands/post.js';
 import { registerQueryIdsCommand } from '../commands/query-ids.js';
 import { registerReadCommands } from '../commands/read.js';
@@ -23,6 +24,8 @@ export const KNOWN_COMMANDS = new Set([
   'following',
   'followers',
   'likes',
+  'lists',
+  'list-timeline',
   'help',
   'whoami',
   'check',
@@ -124,6 +127,7 @@ export function createProgram(ctx: CliContext): Command {
   registerReadCommands(program, ctx);
   registerSearchCommands(program, ctx);
   registerBookmarksCommand(program, ctx);
+  registerListsCommand(program, ctx);
   registerUserCommands(program, ctx);
   registerCheckCommand(program, ctx);
 

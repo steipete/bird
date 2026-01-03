@@ -237,6 +237,27 @@ export interface TwitterClientOptions {
   quoteDepth?: number;
 }
 
+export interface TwitterList {
+  id: string;
+  name: string;
+  description?: string;
+  memberCount?: number;
+  subscriberCount?: number;
+  isPrivate?: boolean;
+  createdAt?: string;
+  owner?: {
+    id: string;
+    username: string;
+    name: string;
+  };
+}
+
+export interface ListsResult {
+  success: boolean;
+  lists?: TwitterList[];
+  error?: string;
+}
+
 export interface CreateTweetResponse {
   data?: {
     create_tweet?: {
