@@ -17,11 +17,9 @@ describe('bookmarks command', () => {
     } as unknown as CliContext;
 
     registerBookmarksCommand(program, ctx);
-    const exitSpy = vi
-      .spyOn(process, 'exit')
-      .mockImplementation(((code?: number) => {
-        throw new Error(`exit ${code}`);
-      }) as never);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`exit ${code}`);
+    }) as never);
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {

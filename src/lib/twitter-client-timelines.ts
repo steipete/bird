@@ -388,7 +388,7 @@ export function withTimelines<TBase extends AbstractConstructor<TwitterClientBas
                 queryId,
                 pageCount,
                 hasCursor: Boolean(pageCursor),
-                includeCount: Object.prototype.hasOwnProperty.call(variables, 'count'),
+                includeCount: Object.hasOwn(variables, 'count'),
               });
               const response = await this.fetchWithRetry(url, {
                 method: 'GET',

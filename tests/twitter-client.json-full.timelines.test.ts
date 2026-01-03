@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwitterClient } from '../src/lib/twitter-client.js';
-import { validCookies, type TwitterClientPrivate } from './twitter-client-fixtures.js';
+import { type TwitterClientPrivate, validCookies } from './twitter-client-fixtures.js';
 
 const originalFetch = global.fetch;
 
