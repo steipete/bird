@@ -14,4 +14,8 @@ export type TwitterClientPrivate = TwitterClient & {
     error?: string;
   }>;
   getLikesQueryIds: () => Promise<string[]>;
+  getListTimelineQueryIds: () => Promise<string[]>;
+  getListOwnershipsQueryIds: () => Promise<string[]>;
+  getListMembershipsQueryIds: () => Promise<string[]>;
+  refreshQueryIds: () => Promise<void>;
 };

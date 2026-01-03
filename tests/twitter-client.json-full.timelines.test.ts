@@ -183,4 +183,61 @@ describe('TwitterClient timelines includeRaw', () => {
     expect(result.tweets?.[0]._raw).toBeDefined();
     expect(result.tweets?.[0]._raw?.entities?.hashtags?.[0].text).toBe('like');
   });
+
+  it('includes _raw for list timeline when includeRaw is true', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          list: {
+            tweets_timeline: {
+              timeline: {
+                instructions: [
+                  {
+                    entries: [
+                      {
+                        content: {
+                          itemContent: {
+                            tweet_results: {
+                              result: {
+                                rest_id: '777',
+                                legacy: {
+                                  full_text: 'from list',
+                                  created_at: '2024-01-01T00:00:00Z',
+                                },
+                                core: {
+                                  user_results: {
+                                    result: { legacy: { screen_name: 'listmember', name: 'List Member' } },
+                                  },
+                                },
+                                entities: {
+                                  hashtags: [{ text: 'listtweet' }],
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    const client = new TwitterClient({ cookies: validCookies });
+    const clientPrivate = client as unknown as TwitterClientPrivate;
+    clientPrivate.getListTimelineQueryIds = async () => ['test'];
+
+    const result = await client.getListTimeline('12345', 1, { includeRaw: true });
+
+    expect(result.success).toBe(true);
+    expect(result.tweets).toHaveLength(1);
+    expect(result.tweets?.[0]._raw).toBeDefined();
+    expect(result.tweets?.[0]._raw?.entities?.hashtags?.[0].text).toBe('listtweet');
+  });
 });
