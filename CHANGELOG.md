@@ -5,6 +5,7 @@
 ### Added
 - Bookmark exports now support pagination (`--all`, `--max-pages`) with retries (#15) — thanks @Nano1337.
 - `lists` + `list-timeline` commands for Twitter Lists (#21) — thanks @harperreed
+- Tweet JSON output now includes media items (photos, videos, GIFs) (#14) — thanks @Hormold
 ## 0.5.1 — 2026-01-01
 
 ### Changed
