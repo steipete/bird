@@ -3,30 +3,9 @@
 
 import type { Command } from 'commander';
 import type { CliContext } from '../cli/shared.js';
+import { extractListId } from '../lib/extract-list-id.js';
 import type { TwitterList } from '../lib/twitter-client.js';
 import { TwitterClient } from '../lib/twitter-client.js';
-
-const NUMERIC_ID_REGEX = /^\d+$/;
-const LIST_URL_REGEX = /(?:x\.com|twitter\.com)\/i\/lists\/(\d+)/i;
-
-function extractListId(listIdOrUrl: string): string | null {
-  const trimmed = listIdOrUrl.trim();
-
-  // Numeric ID
-  if (NUMERIC_ID_REGEX.test(trimmed)) {
-    return trimmed;
-  }
-
-  // URL formats:
-  // https://x.com/i/lists/1234567890123456789
-  // https://twitter.com/i/lists/1234567890123456789
-  const urlMatch = trimmed.match(LIST_URL_REGEX);
-  if (urlMatch) {
-    return urlMatch[1];
-  }
-
-  return null;
-}
 
 function printLists(lists: TwitterList[], ctx: CliContext): void {
   if (lists.length === 0) {
