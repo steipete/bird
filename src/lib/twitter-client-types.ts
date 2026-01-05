@@ -280,6 +280,8 @@ export interface FollowingResult {
   success: boolean;
   users?: TwitterUser[];
   error?: string;
+  /** Cursor for fetching the next page of results */
+  nextCursor?: string;
 }
 
 export interface TwitterClientOptions {
