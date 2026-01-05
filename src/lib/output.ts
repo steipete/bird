@@ -2,6 +2,7 @@ export type OutputConfig = {
   plain: boolean;
   emoji: boolean;
   color: boolean;
+  hyperlinks: boolean;
 };
 
 export type StatusKind = 'ok' | 'warn' | 'err' | 'info' | 'hint';
@@ -33,8 +34,9 @@ export function resolveOutputConfigFromArgv(argv: string[], env: NodeJS.ProcessE
   const plain = argv.includes('--plain');
   const emoji = !plain && !argv.includes('--no-emoji');
   const color = !plain && !argv.includes('--no-color') && defaultColor;
+  const hyperlinks = !plain && isTty;
 
-  return { plain, emoji, color };
+  return { plain, emoji, color, hyperlinks };
 }
 
 export function resolveOutputConfigFromCommander(
@@ -48,8 +50,9 @@ export function resolveOutputConfigFromCommander(
   const plain = Boolean(opts.plain);
   const emoji = !plain && (opts.emoji ?? true);
   const color = !plain && (opts.color ?? true) && defaultColor;
+  const hyperlinks = !plain && isTty;
 
-  return { plain, emoji, color };
+  return { plain, emoji, color, hyperlinks };
 }
 
 export function statusPrefix(kind: StatusKind, cfg: OutputConfig): string {
@@ -93,6 +96,21 @@ export function formatTweetUrl(tweetId: string): string {
   return `https://x.com/i/status/${tweetId}`;
 }
 
+/**
+ * Wraps a URL in OSC 8 escape sequences to make it clickable in supported terminals.
+ * Falls back to plain text when not in a TTY or when hyperlinks are disabled.
+ */
+export function hyperlink(url: string, text?: string, cfg?: OutputConfig): string {
+  const displayText = text ?? url;
+  // Only use hyperlinks when explicitly enabled (requires TTY and not plain mode)
+  if (!cfg?.hyperlinks) {
+    return displayText;
+  }
+  // OSC 8 hyperlink: \x1b]8;;URL\x07TEXT\x1b]8;;\x07
+  return `\x1b]8;;${url}\x07${displayText}\x1b]8;;\x07`;
+}
+
 export function formatTweetUrlLine(tweetId: string, cfg: OutputConfig): string {
-  return `${labelPrefix('url', cfg)}${formatTweetUrl(tweetId)}`;
+  const url = formatTweetUrl(tweetId);
+  return `${labelPrefix('url', cfg)}${hyperlink(url, url, cfg)}`;
 }
