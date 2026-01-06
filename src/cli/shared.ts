@@ -319,7 +319,45 @@ export function createCliContext(normalizedArgs: string[], env: NodeJS.ProcessEn
     }
     for (const tweet of tweets) {
       console.log(`\n@${tweet.author.username} (${tweet.author.name}):`);
-      console.log(tweet.text);
+
+      // Display tweet text, with article indicator if present
+      if (tweet.article) {
+        // For articles: show preview if text is just the title (home timeline),
+        // otherwise show full text (single tweet detail)
+        const isFullBody = tweet.text.length > tweet.article.title.length + 50;
+        if (isFullBody) {
+          console.log(`📰 ${tweet.text}`);
+        } else {
+          console.log(`📰 ${tweet.article.title}`);
+          if (tweet.article.previewText) {
+            console.log(`   ${tweet.article.previewText}`);
+          }
+        }
+      } else {
+        console.log(tweet.text);
+      }
+
+      // Display media attachments
+      if (tweet.media && tweet.media.length > 0) {
+        for (const m of tweet.media) {
+          const label = m.type === 'video' ? '🎬' : m.type === 'animated_gif' ? '🔄' : '🖼️';
+          console.log(`${label} ${m.url}`);
+        }
+      }
+
+      // Display quoted tweet
+      if (tweet.quotedTweet) {
+        console.log(`┌─ QT @${tweet.quotedTweet.author.username}:`);
+        const qtText = tweet.quotedTweet.article ? `📰 ${tweet.quotedTweet.article.title}` : tweet.quotedTweet.text;
+        // Indent and truncate quoted tweet text
+        const maxLen = 280;
+        const truncated = qtText.length > maxLen ? `${qtText.slice(0, maxLen)}...` : qtText;
+        for (const line of truncated.split('\n').slice(0, 4)) {
+          console.log(`│  ${line}`);
+        }
+        console.log(`└─ https://x.com/${tweet.quotedTweet.author.username}/status/${tweet.quotedTweet.id}`);
+      }
+
       if (tweet.createdAt) {
         console.log(`${l('date')}${tweet.createdAt}`);
       }

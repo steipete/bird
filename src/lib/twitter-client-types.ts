@@ -236,6 +236,11 @@ export interface TweetData {
   quotedTweet?: TweetData;
   // Media attachments (photos, videos, GIFs)
   media?: TweetMedia[];
+  // Article metadata (for Twitter Articles / long-form posts)
+  article?: {
+    title: string;
+    previewText?: string;
+  };
   // Raw GraphQL tweet result (only when includeRaw is enabled)
   _raw?: GraphqlTweetResult;
 }
