@@ -67,16 +67,6 @@ export abstract class TwitterClientBase {
     return Array.from(new Set([primary, 'M1jEez78PEfVfbQLvlWMvQ', '5h0kNbk3ii97rmfY6CdgAA', 'Tp1sewRU1AsZpBWhqCZicQ']));
   }
 
-  protected async getHomeTimelineQueryIds(): Promise<string[]> {
-    const primary = await this.getQueryId('HomeTimeline');
-    return Array.from(new Set([primary, 'edseUwk9sP5Phz__9TIRnA']));
-  }
-
-  protected async getHomeLatestTimelineQueryIds(): Promise<string[]> {
-    const primary = await this.getQueryId('HomeLatestTimeline');
-    return Array.from(new Set([primary, 'iOEZpOdfekFsxSlPQCQtPg']));
-  }
-
   protected async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
     if (!this.timeoutMs || this.timeoutMs <= 0) {
       return fetch(url, init);

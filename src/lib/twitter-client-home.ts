@@ -24,6 +24,16 @@ export function withHome<TBase extends AbstractConstructor<TwitterClientBase>>(
       super(...args);
     }
 
+    private async getHomeTimelineQueryIds(): Promise<string[]> {
+      const primary = await this.getQueryId('HomeTimeline');
+      return Array.from(new Set([primary, 'edseUwk9sP5Phz__9TIRnA']));
+    }
+
+    private async getHomeLatestTimelineQueryIds(): Promise<string[]> {
+      const primary = await this.getQueryId('HomeLatestTimeline');
+      return Array.from(new Set([primary, 'iOEZpOdfekFsxSlPQCQtPg']));
+    }
+
     /**
      * Get the authenticated user's "For You" home timeline
      */
