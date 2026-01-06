@@ -7,10 +7,10 @@ export function registerHomeCommand(program: Command, ctx: CliContext): void {
     .command('home')
     .description('Get your home timeline ("For You" feed)')
     .option('-n, --count <number>', 'Number of tweets to fetch', '20')
-    .option('--latest', 'Get "Following" (chronological) instead of "For You"')
+    .option('--following', 'Get "Following" feed (chronological) instead of "For You"')
     .option('--json', 'Output as JSON')
     .option('--json-full', 'Output as JSON with full raw API response in _raw field')
-    .action(async (cmdOpts: { count?: string; latest?: boolean; json?: boolean; jsonFull?: boolean }) => {
+    .action(async (cmdOpts: { count?: string; following?: boolean; json?: boolean; jsonFull?: boolean }) => {
       const opts = program.opts();
       const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
       const count = Number.parseInt(cmdOpts.count || '20', 10);
@@ -34,12 +34,12 @@ export function registerHomeCommand(program: Command, ctx: CliContext): void {
       const client = new TwitterClient({ cookies, timeoutMs });
       const includeRaw = cmdOpts.jsonFull ?? false;
 
-      const result = cmdOpts.latest
+      const result = cmdOpts.following
         ? await client.getHomeLatestTimeline(count, { includeRaw })
         : await client.getHomeTimeline(count, { includeRaw });
 
       if (result.success && result.tweets) {
-        const feedType = cmdOpts.latest ? 'Following' : 'For You';
+        const feedType = cmdOpts.following ? 'Following' : 'For You';
         const emptyMessage = `No tweets found in ${feedType} timeline.`;
         const isJson = cmdOpts.json || cmdOpts.jsonFull;
         ctx.printTweets(result.tweets, { json: isJson, emptyMessage });
