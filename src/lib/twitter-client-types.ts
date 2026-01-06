@@ -132,7 +132,6 @@ export type GraphqlTweetResult = {
         }>;
       };
     };
-    title?: string;
     plain_text?: string;
     text?: string;
     richtext?: {
