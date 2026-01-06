@@ -80,9 +80,12 @@ export type GraphqlTweetResult = {
     };
   };
   article?: {
+    title?: string;
+    preview_text?: string;
     article_results?: {
       result?: {
         title?: string;
+        preview_text?: string;
         plain_text?: string;
         text?: string;
         richtext?: {

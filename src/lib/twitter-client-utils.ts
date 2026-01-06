@@ -168,10 +168,7 @@ export function extractArticleMetadata(
   }
 
   // preview_text is available in home timeline responses
-  const previewText = firstText(
-    (articleResult as { preview_text?: string }).preview_text,
-    (article as { preview_text?: string }).preview_text,
-  );
+  const previewText = firstText(articleResult.preview_text, article.preview_text);
 
   return { title, previewText };
 }
