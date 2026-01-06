@@ -226,6 +226,12 @@ export function buildListsFeatures(): Record<string, boolean> {
   });
 }
 
+export function buildHomeTimelineFeatures(): Record<string, boolean> {
+  return applyFeatureOverrides('homeTimeline', {
+    ...buildTimelineFeatures(),
+  });
+}
+
 export function buildFollowingFeatures(): Record<string, boolean> {
   return applyFeatureOverrides('following', {
     rweb_video_screen_enabled: true,

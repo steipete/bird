@@ -18,6 +18,7 @@ export {
   type TwitterClientOptions,
   type TwitterUser,
 } from './twitter-client.js';
+export type { HomeTimelineFetchOptions } from './twitter-client-home.js';
 export type { SearchFetchOptions } from './twitter-client-search.js';
 export type { TimelineFetchOptions } from './twitter-client-timelines.js';
 export type { TweetFetchOptions } from './twitter-client-tweet-detail.js';
