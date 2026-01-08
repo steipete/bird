@@ -80,7 +80,12 @@ import { TwitterClient, resolveCredentials } from '@steipete/bird';
 
 const { cookies } = await resolveCredentials({ cookieSource: 'safari' });
 const client = new TwitterClient({ cookies });
-const result = await client.search('from:steipete', 50);
+
+// Search for tweets
+const searchResult = await client.search('from:steipete', 50);
+
+// Fetch news and trending topics
+const newsResult = await client.getNews(10, { aiOnly: true, withTweets: true });
 ```
 
 ## Commands
@@ -97,11 +102,13 @@ const result = await client.search('from:steipete', 50);
 - `bird mentions [-n count] [--user @handle] [--json]` — find tweets mentioning a user (defaults to the authenticated user).
 - `bird bookmarks [-n count] [--folder-id id] [--all] [--max-pages n] [--json]` — list your bookmarked tweets (or a specific bookmark folder); `--max-pages` requires `--all`.
 - `bird unbookmark <tweet-id-or-url...>` — remove one or more bookmarks by tweet ID or URL.
-- `bird likes [-n count] [--json]` — list your liked tweets.
-- `bird following [--user <userId>] [-n count] [--json]` — list users that you (or another user) follow.
-- `bird followers [--user <userId>] [-n count] [--json]` — list users that follow you (or another user).
-- `bird whoami` — print which Twitter account your cookies belong to.
-- `bird check` — show which credentials are available and where they were sourced from.
+ - `bird likes [-n count] [--json]` — list your liked tweets.
+ - `bird news [-n count] [--ai-only] [--with-tweets] [--tweets-per-item n] [--json]` — fetch today's news and trending topics.
+ - `bird trending` — alias for `news` command.
+ - `bird following [--user <userId>] [-n count] [--json]` — list users that you (or another user) follow.
+ - `bird followers [--user <userId>] [-n count] [--json]` — list users that follow you (or another user).
+ - `bird whoami` — print which Twitter account your cookies belong to.
+ - `bird check` — show which credentials are available and where they were sourced from.
 
 Global options:
 - `--auth-token <token>`: set the `auth_token` cookie manually.
@@ -198,8 +205,23 @@ When using `--json` with `following`/`followers`, user objects include:
 | `followersCount` | number? | Followers count |
 | `followingCount` | number? | Following count |
 | `isBlueVerified` | boolean? | Blue verified flag |
-| `profileImageUrl` | string? | Profile image URL |
-| `createdAt` | string? | Account creation timestamp |
+ | `profileImageUrl` | string? | Profile image URL |
+ | `createdAt` | string? | Account creation timestamp |
+
+When using `--json` with `news`/`trending`, news objects include:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier for the news item |
+| `headline` | string | News headline or trend title |
+| `category` | string? | Category (e.g., "AI · Technology", "Trending", "News") |
+| `timeAgo` | string? | Relative time (e.g., "2h ago") |
+| `postCount` | number? | Number of posts |
+| `description` | string? | Item description |
+| `url` | string? | URL to the trend or news article |
+| `tweets` | array? | Related tweets (only when `--with-tweets` is used) |
+| `_raw` | object? | Raw API response (only when `--json-full` is used) |
+
 
 ## Query IDs (GraphQL)
 
