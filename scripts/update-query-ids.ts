@@ -21,6 +21,7 @@ const TARGET_OPERATIONS = [
   'Likes',
   'ExploreSidebar',
   'ExplorePage',
+  'GenericTimelineById',
   'TrendHistory',
 ] as const;
 

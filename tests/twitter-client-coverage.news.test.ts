@@ -23,6 +23,33 @@ const makeResponse = (overrides: Partial<ResponseLike> = {}): ResponseLike => ({
   ...overrides,
 });
 
+// Helper to create GenericTimelineById response structure
+const makeTimelineResponse = (items: any[]) => ({
+  data: {
+    timeline: {
+      timeline: {
+        instructions: [
+          {
+            type: 'TimelineAddEntries',
+            entries: items.map((item, index) => ({
+              entryId: `test-entry-${index}`,
+              content: {
+                items: [
+                  {
+                    item: {
+                      itemContent: item,
+                    },
+                  },
+                ],
+              },
+            })),
+          },
+        ],
+      },
+    },
+  },
+});
+
 describe('TwitterClient news API coverage', () => {
   const originalFetch = global.fetch;
 
@@ -32,51 +59,28 @@ describe('TwitterClient news API coverage', () => {
   });
 
   describe('getNews', () => {
-    it('returns news items from ExplorePage', async () => {
-      const mockFetch = vi.fn().mockResolvedValueOnce(
-        makeResponse({
-          json: async () => ({
-            data: {
-              explore_page: {
-                body: {
-                  initialTimeline: {
-                    timeline: {
-                      timeline: {
-                        instructions: [
-                          {
-                            type: 'TimelineAddEntries',
-                            entries: [
-                              {
-                                entryId: 'test-entry-1',
-                                content: {
-                                  items: [
-                                    {
-                                      itemContent: {
-                                        is_ai_trend: true,
-                                        name: 'AI Breakthrough in Machine Learning',
-                                        social_context: {
-                                          text: 'AI · 2h ago · 15.5K posts',
-                                        },
-                                        trend_url: {
-                                          url: 'https://x.com/hashtag/AI',
-                                        },
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    },
+    it('returns news items from timeline tabs', async () => {
+      // Mock multiple tab requests (forYou, news, sports, entertainment)
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeResponse({
+            json: async () =>
+              makeTimelineResponse([
+                {
+                  is_ai_trend: true,
+                  name: 'AI Breakthrough in Machine Learning',
+                  social_context: {
+                    text: 'AI · 2h ago · 15.5K posts',
+                  },
+                  trend_url: {
+                    url: 'https://x.com/hashtag/AI',
                   },
                 },
-              },
-            },
+              ]),
           }),
-        }),
-      );
+        )
+        .mockResolvedValue(makeResponse({ json: async () => makeTimelineResponse([]) }));
 
       global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -94,57 +98,24 @@ describe('TwitterClient news API coverage', () => {
     });
 
     it('filters to AI-only items when aiOnly is true', async () => {
-      const mockFetch = vi.fn().mockResolvedValueOnce(
-        makeResponse({
-          json: async () => ({
-            data: {
-              explore_page: {
-                body: {
-                  initialTimeline: {
-                    timeline: {
-                      timeline: {
-                        instructions: [
-                          {
-                            type: 'TimelineAddEntries',
-                            entries: [
-                              {
-                                entryId: 'test-entry-1',
-                                content: {
-                                  items: [
-                                    {
-                                      itemContent: {
-                                        is_ai_trend: true,
-                                        name: 'AI News',
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                              {
-                                entryId: 'test-entry-2',
-                                content: {
-                                  items: [
-                                    {
-                                      itemContent: {
-                                        is_ai_trend: false,
-                                        name: 'Regular News',
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    },
-                  },
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeResponse({
+            json: async () =>
+              makeTimelineResponse([
+                {
+                  is_ai_trend: true,
+                  name: 'AI News',
                 },
-              },
-            },
+                {
+                  is_ai_trend: false,
+                  name: 'Regular News',
+                },
+              ]),
           }),
-        }),
-      );
+        )
+        .mockResolvedValue(makeResponse({ json: async () => makeTimelineResponse([]) }));
 
       global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -157,9 +128,10 @@ describe('TwitterClient news API coverage', () => {
     });
 
     it('returns error for non-ok responses', async () => {
+      // Mock all 4 default tabs (forYou, news, sports, entertainment) to return HTTP 500
       const mockFetch = vi
         .fn()
-        .mockResolvedValueOnce(makeResponse({ ok: false, status: 500, text: async () => 'Server error' }));
+        .mockResolvedValue(makeResponse({ ok: false, status: 500, text: async () => 'Server error' }));
 
       global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -167,11 +139,12 @@ describe('TwitterClient news API coverage', () => {
       const result = await client.getNews(10);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('HTTP 500');
+      expect(result.error).toContain('No news items found');
     });
 
     it('returns error when API returns errors', async () => {
-      const mockFetch = vi.fn().mockResolvedValueOnce(
+      // Mock all 4 default tabs to return API errors
+      const mockFetch = vi.fn().mockResolvedValue(
         makeResponse({
           json: async () => ({
             errors: [{ message: 'Rate limited' }, { message: 'Too many requests' }],
@@ -185,30 +158,13 @@ describe('TwitterClient news API coverage', () => {
       const result = await client.getNews(10);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Rate limited');
-      expect(result.error).toContain('Too many requests');
+      expect(result.error).toContain('No news items found');
     });
 
     it('returns error when no news items found', async () => {
-      const mockFetch = vi.fn().mockResolvedValueOnce(
-        makeResponse({
-          json: async () => ({
-            data: {
-              explore_page: {
-                body: {
-                  initialTimeline: {
-                    timeline: {
-                      timeline: {
-                        instructions: [],
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          }),
-        }),
-      );
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValue(makeResponse({ json: async () => makeTimelineResponse([]) }));
 
       global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -219,58 +175,32 @@ describe('TwitterClient news API coverage', () => {
       expect(result.error).toContain('No news items found');
     });
 
-    it('deduplicates headlines', async () => {
-      const mockFetch = vi.fn().mockResolvedValueOnce(
-        makeResponse({
-          json: async () => ({
-            data: {
-              explore_page: {
-                body: {
-                  initialTimeline: {
-                    timeline: {
-                      timeline: {
-                        instructions: [
-                          {
-                            type: 'TimelineAddEntries',
-                            entries: [
-                              {
-                                entryId: 'test-entry-1',
-                                content: {
-                                  items: [
-                                    {
-                                      itemContent: {
-                                        is_ai_trend: true,
-                                        name: 'Duplicate Headline',
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                              {
-                                entryId: 'test-entry-2',
-                                content: {
-                                  items: [
-                                    {
-                                      itemContent: {
-                                        is_ai_trend: true,
-                                        name: 'Duplicate Headline',
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    },
-                  },
+    it('deduplicates headlines across tabs', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeResponse({
+            json: async () =>
+              makeTimelineResponse([
+                {
+                  is_ai_trend: true,
+                  name: 'Duplicate Headline',
                 },
-              },
-            },
+              ]),
           }),
-        }),
-      );
+        )
+        .mockResolvedValueOnce(
+          makeResponse({
+            json: async () =>
+              makeTimelineResponse([
+                {
+                  is_ai_trend: true,
+                  name: 'Duplicate Headline',
+                },
+              ]),
+          }),
+        )
+        .mockResolvedValue(makeResponse({ json: async () => makeTimelineResponse([]) }));
 
       global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -283,70 +213,28 @@ describe('TwitterClient news API coverage', () => {
     });
 
     it('respects count parameter', async () => {
-      const mockFetch = vi.fn().mockResolvedValueOnce(
-        makeResponse({
-          json: async () => ({
-            data: {
-              explore_page: {
-                body: {
-                  initialTimeline: {
-                    timeline: {
-                      timeline: {
-                        instructions: [
-                          {
-                            type: 'TimelineAddEntries',
-                            entries: [
-                              {
-                                entryId: 'test-entry-1',
-                                content: {
-                                  items: [
-                                    {
-                                      itemContent: {
-                                        is_ai_trend: true,
-                                        name: 'News 1',
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                              {
-                                entryId: 'test-entry-2',
-                                content: {
-                                  items: [
-                                    {
-                                      itemContent: {
-                                        is_ai_trend: true,
-                                        name: 'News 2',
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                              {
-                                entryId: 'test-entry-3',
-                                content: {
-                                  items: [
-                                    {
-                                      itemContent: {
-                                        is_ai_trend: true,
-                                        name: 'News 3',
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    },
-                  },
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeResponse({
+            json: async () =>
+              makeTimelineResponse([
+                {
+                  is_ai_trend: true,
+                  name: 'News 1',
                 },
-              },
-            },
+                {
+                  is_ai_trend: true,
+                  name: 'News 2',
+                },
+                {
+                  is_ai_trend: true,
+                  name: 'News 3',
+                },
+              ]),
           }),
-        }),
-      );
+        )
+        .mockResolvedValue(makeResponse({ json: async () => makeTimelineResponse([]) }));
 
       global.fetch = mockFetch as unknown as typeof fetch;
 

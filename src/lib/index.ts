@@ -18,7 +18,7 @@ export {
   type TwitterClientOptions,
   type TwitterUser,
 } from './twitter-client.js';
-export type { NewsFetchOptions, NewsItem, NewsResult } from './twitter-client-news.js';
+export type { ExploreTab, NewsFetchOptions, NewsItem, NewsResult } from './twitter-client-news.js';
 export type { SearchFetchOptions } from './twitter-client-search.js';
 export type { TimelineFetchOptions } from './twitter-client-timelines.js';
 export type { TweetFetchOptions } from './twitter-client-tweet-detail.js';

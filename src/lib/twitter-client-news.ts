@@ -6,6 +6,17 @@ import type { SearchResult, TweetData } from './twitter-client-types.js';
 const POST_COUNT_REGEX = /[\d.]+[KMB]?\s*posts?/i;
 const POST_COUNT_MATCH_REGEX = /([\d.]+)([KMB]?)\s*posts?/i;
 
+// Timeline IDs for different Explore tabs
+const TIMELINE_IDS = {
+  forYou: 'VGltZWxpbmU6DAC2CwABAAAAB2Zvcl95b3UAAA==',
+  trending: 'VGltZWxpbmU6DAC2CwABAAAACHRyZW5kaW5nAAA=',
+  news: 'VGltZWxpbmU6DAC2CwABAAAABG5ld3MAAA==',
+  sports: 'VGltZWxpbmU6DAC2CwABAAAABnNwb3J0cwAA',
+  entertainment: 'VGltZWxpbmU6DAC2CwABAAAADWVudGVydGFpbm1lbnQAAA==',
+} as const;
+
+export type ExploreTab = keyof typeof TIMELINE_IDS;
+
 /** Options for news fetch methods */
 export interface NewsFetchOptions {
   /** Include raw GraphQL response in `_raw` field */
@@ -16,6 +27,8 @@ export interface NewsFetchOptions {
   tweetsPerItem?: number;
   /** Filter to show only AI-curated news items */
   aiOnly?: boolean;
+  /** Fetch from specific tabs only (default: all tabs) */
+  tabs?: ExploreTab[];
 }
 
 export interface NewsItem {
@@ -55,29 +68,94 @@ export function withNews<TBase extends AbstractConstructor<TwitterClientBase>>(
     }
 
     /**
-     * Fetch news and trending topics from Twitter's Explore page
+     * Fetch news and trending topics from Twitter's Explore page tabs
      */
     async getNews(count = 10, options: NewsFetchOptions = {}): Promise<NewsResult> {
-      const { includeRaw = false, withTweets = false, tweetsPerItem = 5, aiOnly = false } = options;
+      const {
+        includeRaw = false,
+        withTweets = false,
+        tweetsPerItem = 5,
+        aiOnly = false,
+        tabs = ['forYou', 'news', 'sports', 'entertainment'],
+      } = options;
 
       const debug = process.env.BIRD_DEBUG === '1';
 
-      // Try ExplorePage first - this has AI headlines in initialTimeline
       if (debug) {
-        console.error('[getNews] Fetching from ExplorePage (has AI headlines)...');
+        console.error(`[getNews] Fetching from tabs: ${tabs.join(', ')}`);
       }
-      const queryId = await this.getQueryId('ExplorePage');
+
+      const allItems: NewsItem[] = [];
+      const seenHeadlines = new Set<string>();
+
+      // Fetch from each tab
+      for (const tab of tabs) {
+        const timelineId = TIMELINE_IDS[tab];
+        if (!timelineId) {
+          continue;
+        }
+
+        try {
+          const tabItems = await this.fetchTimelineTab(tab, timelineId, count, aiOnly, includeRaw, debug);
+
+          // Deduplicate across tabs
+          for (const item of tabItems) {
+            if (!seenHeadlines.has(item.headline)) {
+              seenHeadlines.add(item.headline);
+              allItems.push(item);
+            }
+          }
+
+          if (debug) {
+            console.error(
+              `[getNews] Tab ${tab}: found ${tabItems.length} items, total unique: ${allItems.length}`,
+            );
+          }
+
+          // Stop early if we have enough
+          if (allItems.length >= count) {
+            break;
+          }
+        } catch (error) {
+          if (debug) {
+            console.error(`[getNews] Error fetching tab ${tab}:`, error);
+          }
+          // Continue with other tabs
+        }
+      }
+
+      if (allItems.length === 0) {
+        return { success: false, error: 'No news items found' };
+      }
+
+      // Limit to requested count
+      const items = allItems.slice(0, count);
+
+      if (withTweets) {
+        await this.enrichWithTweets(items, tweetsPerItem, includeRaw);
+      }
+
+      return { success: true, items };
+    }
+
+    /**
+     * Fetch a specific timeline tab using GenericTimelineById
+     */
+    private async fetchTimelineTab(
+      tabName: string,
+      timelineId: string,
+      maxCount: number,
+      aiOnly: boolean,
+      includeRaw: boolean,
+      debug: boolean,
+    ): Promise<NewsItem[]> {
+      const queryId = await this.getQueryId('GenericTimelineById');
       const features = buildExploreFeatures();
 
       const variables = {
-        includePromotedContent: true,
-        withBirdwatchNotes: false,
-        withCommunity: true,
-        withSuperFollowsUserFields: true,
-        withDownvotePerspective: false,
-        withReactionsMetadata: false,
-        withReactionsPerspective: false,
-        withSuperFollowsTweetFields: true,
+        timelineId: timelineId,
+        count: maxCount * 2, // Fetch more to account for filtering
+        includePromotedContent: false,
       };
 
       const params = new URLSearchParams({
@@ -85,180 +163,72 @@ export function withNews<TBase extends AbstractConstructor<TwitterClientBase>>(
         features: JSON.stringify(features),
       });
 
-      const url = `${TWITTER_API_BASE}/${queryId}/ExplorePage?${params.toString()}`;
+      const url = `${TWITTER_API_BASE}/${queryId}/GenericTimelineById?${params.toString()}`;
 
-      try {
-        const response = await this.fetchWithTimeout(url, {
-          method: 'GET',
-          headers: this.getHeaders(),
-        });
+      const response = await this.fetchWithTimeout(url, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
 
-        if (!response.ok) {
-          const text = await response.text();
-          return { success: false, error: `HTTP ${response.status}: ${text.slice(0, 200)}` };
-        }
-
-        const data = (await response.json()) as {
-          // biome-ignore lint/suspicious/noExplicitAny: API response structure is complex
-          data?: any;
-          // biome-ignore lint/suspicious/noExplicitAny: API errors can have any structure
-          errors?: Array<{ message: string; code?: number; [key: string]: any }>;
-        };
-
-        // Debug: save response if BIRD_DEBUG_JSON is set
-        if (process.env.BIRD_DEBUG_JSON) {
-          const fs = await import('node:fs/promises');
-          const debugPath = process.env.BIRD_DEBUG_JSON.replace('.json', '-explorepage.json');
-          await fs.writeFile(debugPath, JSON.stringify(data, null, 2)).catch(() => {});
-          if (debug) {
-            console.error(`[ExplorePage] Saved response to ${debugPath}`);
-          }
-        }
-
-        if (data.errors && data.errors.length > 0) {
-          return { success: false, error: data.errors.map((e) => e.message).join('; ') };
-        }
-
-        const items = this.parseNewsItems(data, count, aiOnly, includeRaw);
-
-        if (items.length === 0) {
-          return { success: false, error: 'No news items found' };
-        }
-
-        if (withTweets) {
-          await this.enrichWithTweets(items, tweetsPerItem, includeRaw);
-        }
-
-        return { success: true, items };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return { success: false, error: `Failed to fetch news: ${errorMessage}` };
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
       }
+
+      const data = (await response.json()) as {
+        // biome-ignore lint/suspicious/noExplicitAny: API response structure is complex
+        data?: any;
+        // biome-ignore lint/suspicious/noExplicitAny: API errors can have any structure
+        errors?: Array<{ message: string; code?: number; [key: string]: any }>;
+      };
+
+      // Debug: save response if BIRD_DEBUG_JSON is set
+      if (process.env.BIRD_DEBUG_JSON) {
+        const fs = await import('node:fs/promises');
+        const debugPath = process.env.BIRD_DEBUG_JSON.replace('.json', `-${tabName}.json`);
+        await fs.writeFile(debugPath, JSON.stringify(data, null, 2)).catch(() => {});
+      }
+
+      if (data.errors && data.errors.length > 0) {
+        throw new Error(data.errors.map((e) => e.message).join('; '));
+      }
+
+      // Parse timeline response
+      return this.parseTimelineTabItems(data, tabName, maxCount, aiOnly, includeRaw);
     }
 
-    // biome-ignore lint/suspicious/noExplicitAny: API response structure is complex
-    private parseNewsItems(data: any, maxCount: number, aiOnly: boolean, includeRaw: boolean): NewsItem[] {
-      const allItems: NewsItem[] = [];
-      const seenHeadlines = new Set<string>();
-      const debug = process.env.BIRD_DEBUG === '1';
-
-      if (debug) {
-        console.error('[ExplorePage] Processing explore_page data...');
-      }
-
-      if (!data.data?.explore_page) {
-        return [];
-      }
-
-      const explorePage = data.data.explore_page;
-
-      if (debug) {
-        console.error('[ExplorePage] Available sections:', Object.keys(explorePage.body || {}));
-      }
-
-      const body = explorePage.body || {};
-
-      // Check the timelines array first (For You, News tabs, etc.)
-      // biome-ignore lint/suspicious/noExplicitAny: exploring API structure
-      const timelines = (body as any).timelines || [];
-      if (debug) {
-        console.error(`[ExplorePage] Found ${timelines.length} timelines`);
-      }
-
-      for (const timelineObj of timelines) {
-        if (debug) {
-          console.error(`[ExplorePage] Timeline ID: ${timelineObj.id}, Label: ${timelineObj.labelText}`);
-          console.error(`[ExplorePage] Timeline keys:`, Object.keys(timelineObj));
-        }
-
-        const timeline = timelineObj.timeline;
-        if (timeline) {
-          const instructions = timeline.timeline?.instructions ?? timeline.instructions ?? [];
-
-          if (debug) {
-            console.error(`[ExplorePage] Timeline ${timelineObj.labelText} has ${instructions.length} instructions`);
-          }
-
-          const itemsFromTimeline = this.extractNewsItemsFromInstructions(
-            instructions,
-            timelineObj.__typename || 'timeline',
-            seenHeadlines,
-            maxCount,
-            aiOnly,
-            includeRaw,
-          );
-
-          if (debug) {
-            console.error(`[ExplorePage] Timeline found ${itemsFromTimeline.length} AI news items`);
-          }
-
-          allItems.push(...itemsFromTimeline);
-
-          if (allItems.length >= maxCount) {
-            break;
-          }
-        }
-      }
-
-      // Also check initialTimeline as fallback
-      if (allItems.length < maxCount && body.initialTimeline) {
-        const timeline = body.initialTimeline.timeline;
-        if (timeline) {
-          const instructions = timeline.timeline?.instructions ?? [];
-
-          const itemsFromInitial = this.extractNewsItemsFromInstructions(
-            instructions,
-            'initialTimeline',
-            seenHeadlines,
-            maxCount - allItems.length,
-            aiOnly,
-            includeRaw,
-          );
-
-          allItems.push(...itemsFromInitial);
-        }
-      }
-
-      return allItems;
-    }
-
-    private extractNewsItemsFromInstructions(
+    /**
+     * Parse items from a GenericTimelineById response
+     */
+    private parseTimelineTabItems(
       // biome-ignore lint/suspicious/noExplicitAny: API response structure is complex
-      instructions: any[],
+      data: any,
       source: string,
-      seenHeadlines: Set<string>,
       maxCount: number,
       aiOnly: boolean,
       includeRaw: boolean,
     ): NewsItem[] {
       const items: NewsItem[] = [];
-      const debug = process.env.BIRD_DEBUG === '1';
+      const seenHeadlines = new Set<string>();
+
+      // Navigate to timeline instructions
+      const timeline = data?.data?.timeline?.timeline;
+      if (!timeline) {
+        return [];
+      }
+
+      const instructions = timeline.instructions || [];
 
       for (const instruction of instructions) {
         if (instruction.type !== 'TimelineAddEntries') {
           continue;
         }
 
-        const entries = instruction.entries ?? [];
-
-        if (debug) {
-          console.error(`[${source}] Processing ${entries.length} entries`);
-        }
+        const entries = instruction.entries || [];
 
         for (const entry of entries) {
           if (items.length >= maxCount) {
             break;
-          }
-
-          if (debug) {
-            console.error(
-              `[${source}] Entry ID: ${entry.entryId}, content type: ${entry.content?.__typename || entry.content?.entryType || 'unknown'}`,
-            );
-
-            // Check if this is a "Today's News" or news section header
-            if (entry.content?.header || entry.content?.displayType === 'VerticalConversation') {
-              console.error(`[${source}] Found potential news section:`, entry.content?.header);
-            }
           }
 
           const content = entry.content;
@@ -267,14 +237,7 @@ export function withNews<TBase extends AbstractConstructor<TwitterClientBase>>(
           }
 
           // Handle TimelineTimelineItem (single trend item)
-          if (content.itemContent && items.length < maxCount) {
-            if (debug && content.itemContent.is_ai_trend) {
-              console.error(
-                `[ExplorePage] Found AI trend in ${entry.entryId}:`,
-                JSON.stringify(content.itemContent, null, 2).substring(0, 500),
-              );
-            }
-
+          if (content.itemContent) {
             const newsItem = this.parseNewsItemFromContent(
               content.itemContent,
               entry.entryId,
@@ -290,11 +253,7 @@ export function withNews<TBase extends AbstractConstructor<TwitterClientBase>>(
           }
 
           // Handle TimelineTimelineModule (multiple items)
-          const itemsArray = content?.items ?? [];
-
-          if (debug && itemsArray.length > 0) {
-            console.error(`[${source}] Module has ${itemsArray.length} items`);
-          }
+          const itemsArray = content?.items || [];
 
           for (const data of itemsArray) {
             if (items.length >= maxCount) {
@@ -305,19 +264,6 @@ export function withNews<TBase extends AbstractConstructor<TwitterClientBase>>(
             const itemContent = data?.itemContent || data?.item?.itemContent;
             if (!itemContent) {
               continue;
-            }
-
-            if (debug) {
-              console.error(
-                `[${source}] Module item type: ${itemContent.__typename}, name: ${itemContent.name}, is_ai: ${itemContent.is_ai_trend}`,
-              );
-            }
-
-            if (debug && itemContent.is_ai_trend) {
-              console.error(
-                `[ExplorePage] Found AI trend in module ${entry.entryId}:`,
-                JSON.stringify(itemContent, null, 2).substring(0, 500),
-              );
             }
 
             const newsItem = this.parseNewsItemFromContent(
@@ -338,6 +284,8 @@ export function withNews<TBase extends AbstractConstructor<TwitterClientBase>>(
 
       return items;
     }
+
+    // biome-ignore lint/suspicious/noExplicitAny: API response structure is complex
 
     private parseNewsItemFromContent(
       // biome-ignore lint/suspicious/noExplicitAny: API response structure is complex

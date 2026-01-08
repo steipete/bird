@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import type { CliContext } from '../cli/shared.js';
 import { TwitterClient } from '../lib/twitter-client.js';
-import type { NewsItem } from '../lib/twitter-client-news.js';
+import type { ExploreTab, NewsItem } from '../lib/twitter-client-news.js';
 
 function formatPostCount(count: number): string {
   if (count >= 1_000_000) {
@@ -69,11 +69,16 @@ export function registerNewsCommand(program: Command, ctx: CliContext): void {
   program
     .command('news')
     .alias('trending')
-    .description("Fetch today's news and trending topics")
+    .description("Fetch AI-curated news and trending topics from Explore tabs")
     .option('-n, --count <number>', 'Number of items to fetch', '10')
     .option('--ai-only', 'Show only AI-curated news items')
     .option('--with-tweets', 'Also fetch related tweets for each news item')
     .option('--tweets-per-item <number>', 'Number of tweets to fetch per news item (default: 5)', '5')
+    .option('--for-you', 'Fetch only from For You tab')
+    .option('--news-only', 'Fetch only from News tab')
+    .option('--sports', 'Fetch only from Sports tab')
+    .option('--entertainment', 'Fetch only from Entertainment tab')
+    .option('--trending-only', 'Fetch only from Trending tab')
     .option('--json', 'Output as JSON')
     .option('--json-full', 'Output as JSON with full raw API response in _raw field')
     .action(
@@ -82,6 +87,11 @@ export function registerNewsCommand(program: Command, ctx: CliContext): void {
         aiOnly?: boolean;
         withTweets?: boolean;
         tweetsPerItem?: string;
+        forYou?: boolean;
+        newsOnly?: boolean;
+        sports?: boolean;
+        entertainment?: boolean;
+        trendingOnly?: boolean;
         json?: boolean;
         jsonFull?: boolean;
       }) => {
@@ -112,12 +122,29 @@ export function registerNewsCommand(program: Command, ctx: CliContext): void {
           process.exit(1);
         }
 
+        // Determine which tabs to fetch from
+        const tabs: ExploreTab[] = [];
+        if (cmdOpts.forYou) tabs.push('forYou');
+        if (cmdOpts.newsOnly) tabs.push('news');
+        if (cmdOpts.sports) tabs.push('sports');
+        if (cmdOpts.entertainment) tabs.push('entertainment');
+        if (cmdOpts.trendingOnly) tabs.push('trending');
+
+        // If no specific tabs selected, use defaults (all tabs except trending)
+        const tabsToFetch = tabs.length > 0 ? tabs : undefined;
+
         const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
         const includeRaw = cmdOpts.jsonFull ?? false;
         const withTweets = cmdOpts.withTweets ?? false;
         const aiOnly = cmdOpts.aiOnly ?? false;
 
-        const result = await client.getNews(count, { includeRaw, withTweets, tweetsPerItem, aiOnly });
+        const result = await client.getNews(count, {
+          includeRaw,
+          withTweets,
+          tweetsPerItem,
+          aiOnly,
+          tabs: tabsToFetch,
+        });
 
         if (result.success) {
           printNewsItems(result.items, ctx, {

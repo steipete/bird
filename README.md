@@ -59,6 +59,10 @@ bird unbookmark https://x.com/user/status/1234567890123456789
 # Likes
 bird likes -n 5
 
+# News and trending topics (AI-curated from Explore tabs)
+bird news --ai-only -n 10
+bird news --sports -n 5
+
 # Following (who you follow)
 bird following -n 20
 bird following --user 12345678 -n 10  # by user ID
@@ -70,6 +74,42 @@ bird followers --user 12345678 -n 10  # by user ID
 # Refresh GraphQL query IDs cache (no rebuild)
 bird query-ids --fresh
 ```
+
+## News & Trending
+
+Fetch AI-curated news and trending topics from X's Explore page tabs:
+
+```bash
+# Fetch 10 news items from all tabs (default: For You, News, Sports, Entertainment)
+bird news -n 10
+
+# Fetch only AI-curated news (filters out regular trends)
+bird news --ai-only -n 20
+
+# Fetch from specific tabs
+bird news --news-only --ai-only -n 10
+bird news --sports -n 15
+bird news --entertainment --ai-only -n 5
+
+# Include related tweets for each news item
+bird news --with-tweets --tweets-per-item 3 -n 10
+
+# Combine multiple tab filters
+bird news --sports --entertainment -n 20
+
+# JSON output
+bird news --json -n 5
+bird news --json-full --ai-only -n 10  # includes raw API response
+```
+
+Tab options (can be combined):
+- `--for-you` — Fetch from For You tab only
+- `--news-only` — Fetch from News tab only
+- `--sports` — Fetch from Sports tab only
+- `--entertainment` — Fetch from Entertainment tab only
+- `--trending-only` — Fetch from Trending tab only
+
+By default, the command fetches from For You, News, Sports, and Entertainment tabs (Trending excluded to reduce noise). Headlines are automatically deduplicated across tabs.
 
 ## Library
 
@@ -84,8 +124,15 @@ const client = new TwitterClient({ cookies });
 // Search for tweets
 const searchResult = await client.search('from:steipete', 50);
 
-// Fetch news and trending topics
-const newsResult = await client.getNews(10, { aiOnly: true, withTweets: true });
+// Fetch news and trending topics from all tabs (default: For You, News, Sports, Entertainment)
+const newsResult = await client.getNews(10, { aiOnly: true });
+
+// Fetch from specific tabs with related tweets
+const sportsNews = await client.getNews(10, {
+  aiOnly: true,
+  withTweets: true,
+  tabs: ['sports', 'entertainment']
+});
 ```
 
 ## Commands
@@ -103,7 +150,7 @@ const newsResult = await client.getNews(10, { aiOnly: true, withTweets: true });
 - `bird bookmarks [-n count] [--folder-id id] [--all] [--max-pages n] [--json]` — list your bookmarked tweets (or a specific bookmark folder); `--max-pages` requires `--all`.
 - `bird unbookmark <tweet-id-or-url...>` — remove one or more bookmarks by tweet ID or URL.
  - `bird likes [-n count] [--json]` — list your liked tweets.
- - `bird news [-n count] [--ai-only] [--with-tweets] [--tweets-per-item n] [--json]` — fetch today's news and trending topics.
+ - `bird news [-n count] [--ai-only] [--with-tweets] [--tweets-per-item n] [--for-you] [--news-only] [--sports] [--entertainment] [--trending-only] [--json]` — fetch news and trending topics from X's Explore tabs (fetches from For You, News, Sports, and Entertainment tabs by default).
  - `bird trending` — alias for `news` command.
  - `bird following [--user <userId>] [-n count] [--json]` — list users that you (or another user) follow.
  - `bird followers [--user <userId>] [-n count] [--json]` — list users that follow you (or another user).
