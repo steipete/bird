@@ -19,6 +19,9 @@ const TARGET_OPERATIONS = [
   'Following',
   'Followers',
   'Likes',
+  'ExploreSidebar',
+  'ExplorePage',
+  'TrendHistory',
 ] as const;
 
 type OperationName = (typeof TARGET_OPERATIONS)[number];
