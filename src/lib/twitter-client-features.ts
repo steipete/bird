@@ -161,6 +161,7 @@ export function buildTimelineFeatures(): Record<string, boolean> {
     interactive_text_enabled: true,
     longform_notetweets_richtext_consumption_enabled: true,
     responsive_web_media_download_video_enabled: false,
+    post_ctas_fetch_enabled: true,
   });
 }
 
