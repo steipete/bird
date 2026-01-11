@@ -268,6 +268,22 @@ d('live CLI (Twitter/X)', () => {
     expect(Array.isArray(followerUsers)).toBe(true);
   });
 
+  it('user-tweets returns JSON array', async () => {
+    // Use a known active account for reliable testing (authenticated user may have no tweets)
+    const testHandle = process.env.BIRD_LIVE_USER_TWEETS_HANDLE || 'X';
+    const userTweets = await runBird(
+      [...baseArgs, '--cookie-timeout', cookieTimeoutArg, 'user-tweets', testHandle, '-n', '5', '--json'],
+      {
+        timeoutMs: 45_000,
+      },
+    );
+    expect(userTweets.exitCode).toBe(0);
+    const tweets = parseJson<Array<{ id?: string; author?: { username?: string } }>>(userTweets.stdout);
+    expect(Array.isArray(tweets)).toBe(true);
+    expect(tweets.length).toBeGreaterThan(0);
+    expect(tweets[0].author?.username?.toLowerCase()).toBe(testHandle.toLowerCase());
+  });
+
   it('query-ids returns JSON', async () => {
     const queryIds = await runBird([...baseArgs, '--cookie-timeout', cookieTimeoutArg, 'query-ids', '--json'], {
       timeoutMs: 60_000,

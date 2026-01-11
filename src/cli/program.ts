@@ -8,6 +8,7 @@ import { registerQueryIdsCommand } from '../commands/query-ids.js';
 import { registerReadCommands } from '../commands/read.js';
 import { registerSearchCommands } from '../commands/search.js';
 import { registerUnbookmarkCommand } from '../commands/unbookmark.js';
+import { registerUserTweetsCommand } from '../commands/user-tweets.js';
 import { registerUserCommands } from '../commands/users.js';
 import { getCliVersion } from '../lib/version.js';
 import { type CliContext, collectCookieSource } from './shared.js';
@@ -28,6 +29,7 @@ export const KNOWN_COMMANDS = new Set([
   'likes',
   'lists',
   'list-timeline',
+  'user-tweets',
   'help',
   'whoami',
   'check',
@@ -86,7 +88,7 @@ export function createProgram(ctx: CliContext): Command {
       ].join('\n\n')}\n\n${ctx.colors.section('Shortcuts')}\n${[
         formatExample('bird <tweet-id-or-url> [--json]', 'Shorthand for `bird read <tweet-id-or-url>`'),
       ].join('\n\n')}\n\n${ctx.colors.section('JSON Output')}\n${ctx.colors.muted(
-        `  Add ${ctx.colors.option('--json')} to: read, replies, thread, search, mentions, bookmarks, likes, following, followers, lists, list-timeline, query-ids`,
+        `  Add ${ctx.colors.option('--json')} to: read, replies, thread, search, mentions, bookmarks, likes, following, followers, lists, list-timeline, user-tweets, query-ids`,
       )}\n${ctx.colors.muted(
         `  Add ${ctx.colors.option('--json-full')} to include raw API response in ${ctx.colors.argument('_raw')} field (tweet commands only)`,
       )}\n${ctx.colors.muted(`  (Run ${ctx.colors.command('bird <command> --help')} to see per-command flags.)`)}`,
@@ -132,6 +134,7 @@ export function createProgram(ctx: CliContext): Command {
   registerUnbookmarkCommand(program, ctx);
   registerListsCommand(program, ctx);
   registerUserCommands(program, ctx);
+  registerUserTweetsCommand(program, ctx);
   registerCheckCommand(program, ctx);
 
   return program;
