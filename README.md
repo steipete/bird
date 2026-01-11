@@ -59,6 +59,11 @@ bird unbookmark https://x.com/user/status/1234567890123456789
 # Likes
 bird likes -n 5
 
+# Lists
+bird list-timeline 1234567890 -n 20
+bird list-timeline https://x.com/i/lists/1234567890 --all --json
+bird list-timeline 1234567890 --max-pages 3 --json
+
 # Following (who you follow)
 bird following -n 20
 bird following --user 12345678 -n 10  # by user ID
@@ -98,6 +103,7 @@ const result = await client.search('from:steipete', 50);
 - `bird bookmarks [-n count] [--folder-id id] [--all] [--max-pages n] [--json]` — list your bookmarked tweets (or a specific bookmark folder); `--max-pages` requires `--all`.
 - `bird unbookmark <tweet-id-or-url...>` — remove one or more bookmarks by tweet ID or URL.
 - `bird likes [-n count] [--json]` — list your liked tweets.
+- `bird list-timeline <list-id-or-url> [-n count] [--all] [--max-pages n] [--cursor string] [--json]` — get tweets from a list timeline; `--max-pages` implies `--all`.
 - `bird following [--user <userId>] [-n count] [--json]` — list users that you (or another user) follow.
 - `bird followers [--user <userId>] [-n count] [--json]` — list users that follow you (or another user).
 - `bird whoami` — print which Twitter account your cookies belong to.
