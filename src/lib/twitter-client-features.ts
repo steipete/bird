@@ -9,6 +9,7 @@ export function buildArticleFeatures(): Record<string, boolean> {
     verified_phone_label_enabled: false,
     creator_subscriptions_tweet_preview_api_enabled: true,
     responsive_web_graphql_timeline_navigation_enabled: true,
+    responsive_web_graphql_exclude_directive_enabled: true,
     responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
     premium_content_api_read_enabled: false,
     communities_web_enable_tweet_community_results_fetch: true,
@@ -187,6 +188,7 @@ export function buildListsFeatures(): Record<string, boolean> {
     verified_phone_label_enabled: false,
     creator_subscriptions_tweet_preview_api_enabled: true,
     responsive_web_graphql_timeline_navigation_enabled: true,
+    responsive_web_graphql_exclude_directive_enabled: true,
     responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
     premium_content_api_read_enabled: false,
     communities_web_enable_tweet_community_results_fetch: true,
@@ -216,6 +218,11 @@ export function buildListsFeatures(): Record<string, boolean> {
     responsive_web_grok_imagine_annotation_enabled: true,
     responsive_web_grok_community_note_auto_translation_is_enabled: false,
     responsive_web_enhance_cards_enabled: false,
+    blue_business_profile_image_shape_enabled: false,
+    responsive_web_text_conversations_enabled: false,
+    tweetypie_unmention_optimization_enabled: true,
+    vibe_api_enabled: false,
+    interactive_text_enabled: false,
   });
 }
 
