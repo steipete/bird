@@ -80,9 +80,12 @@ export type GraphqlTweetResult = {
     };
   };
   article?: {
+    title?: string;
+    preview_text?: string;
     article_results?: {
       result?: {
         title?: string;
+        preview_text?: string;
         plain_text?: string;
         text?: string;
         richtext?: {
@@ -129,7 +132,6 @@ export type GraphqlTweetResult = {
         }>;
       };
     };
-    title?: string;
     plain_text?: string;
     text?: string;
     richtext?: {
@@ -236,6 +238,11 @@ export interface TweetData {
   quotedTweet?: TweetData;
   // Media attachments (photos, videos, GIFs)
   media?: TweetMedia[];
+  // Article metadata (for Twitter Articles / long-form posts)
+  article?: {
+    title: string;
+    previewText?: string;
+  };
   // Raw GraphQL tweet result (only when includeRaw is enabled)
   _raw?: GraphqlTweetResult;
 }

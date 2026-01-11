@@ -153,6 +153,26 @@ export function extractTweetText(result: GraphqlTweetResult | undefined): string
   return extractArticleText(result) ?? extractNoteTweetText(result) ?? firstText(result?.legacy?.full_text);
 }
 
+export function extractArticleMetadata(
+  result: GraphqlTweetResult | undefined,
+): { title: string; previewText?: string } | undefined {
+  const article = result?.article;
+  if (!article) {
+    return undefined;
+  }
+
+  const articleResult = article.article_results?.result ?? article;
+  const title = firstText(articleResult.title, article.title);
+  if (!title) {
+    return undefined;
+  }
+
+  // preview_text is available in home timeline responses
+  const previewText = firstText(articleResult.preview_text, article.preview_text);
+
+  return { title, previewText };
+}
+
 export function extractMedia(result: GraphqlTweetResult | undefined): TweetMedia[] | undefined {
   // Prefer extended_entities (has video info), fall back to entities
   const rawMedia = result?.legacy?.extended_entities?.media ?? result?.legacy?.entities?.media;
@@ -261,6 +281,7 @@ export function mapTweetResult(
   }
 
   const media = extractMedia(result);
+  const article = extractArticleMetadata(result);
 
   const tweetData: TweetData = {
     id: result.rest_id,
@@ -278,6 +299,7 @@ export function mapTweetResult(
     authorId: userId,
     quotedTweet,
     media,
+    article,
   };
 
   if (includeRaw) {

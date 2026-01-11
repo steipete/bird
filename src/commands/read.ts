@@ -36,11 +36,7 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
         if (cmdOpts.json || cmdOpts.jsonFull) {
           console.log(JSON.stringify(result.tweet, null, 2));
         } else {
-          console.log(`@${result.tweet.author.username} (${result.tweet.author.name}):`);
-          console.log(result.tweet.text);
-          if (result.tweet.createdAt) {
-            console.log(`\n${ctx.l('date')}${result.tweet.createdAt}`);
-          }
+          ctx.printTweets([result.tweet], { showSeparator: false });
           console.log(formatStatsLine(result.tweet, ctx.getOutput()));
         }
       } else {
