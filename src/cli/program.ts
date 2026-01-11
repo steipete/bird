@@ -3,6 +3,7 @@ import { registerBookmarksCommand } from '../commands/bookmarks.js';
 import { registerCheckCommand } from '../commands/check.js';
 import { registerHelpCommand } from '../commands/help.js';
 import { registerListsCommand } from '../commands/lists.js';
+import { registerNewsCommand } from '../commands/news.js';
 import { registerPostCommands } from '../commands/post.js';
 import { registerQueryIdsCommand } from '../commands/query-ids.js';
 import { registerReadCommands } from '../commands/read.js';
@@ -28,6 +29,8 @@ export const KNOWN_COMMANDS = new Set([
   'likes',
   'lists',
   'list-timeline',
+  'news',
+  'trending',
   'help',
   'whoami',
   'check',
@@ -132,6 +135,7 @@ export function createProgram(ctx: CliContext): Command {
   registerUnbookmarkCommand(program, ctx);
   registerListsCommand(program, ctx);
   registerUserCommands(program, ctx);
+  registerNewsCommand(program, ctx);
   registerCheckCommand(program, ctx);
 
   return program;

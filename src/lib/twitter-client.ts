@@ -3,6 +3,7 @@ import { TwitterClientBase } from './twitter-client-base.js';
 import { type TwitterClientBookmarkMethods, withBookmarks } from './twitter-client-bookmarks.js';
 import { type TwitterClientListMethods, withLists } from './twitter-client-lists.js';
 import { type TwitterClientMediaMethods, withMedia } from './twitter-client-media.js';
+import { type TwitterClientNewsMethods, withNews } from './twitter-client-news.js';
 import { type TwitterClientPostingMethods, withPosting } from './twitter-client-posting.js';
 import { type TwitterClientSearchMethods, withSearch } from './twitter-client-search.js';
 import { type TwitterClientTimelineMethods, withTimelines } from './twitter-client-timelines.js';
@@ -13,18 +14,23 @@ type TwitterClientInstance = TwitterClientBase &
   TwitterClientBookmarkMethods &
   TwitterClientListMethods &
   TwitterClientMediaMethods &
+  TwitterClientNewsMethods &
   TwitterClientPostingMethods &
   TwitterClientSearchMethods &
   TwitterClientTimelineMethods &
   TwitterClientTweetDetailMethods &
   TwitterClientUserMethods;
 
-const MixedTwitterClient = withUsers(
-  withLists(withTimelines(withSearch(withTweetDetails(withPosting(withBookmarks(withMedia(TwitterClientBase))))))),
+// News mixin wraps search because it depends on the search() method
+const MixedTwitterClient = withNews(
+  withUsers(
+    withLists(withTimelines(withSearch(withTweetDetails(withPosting(withBookmarks(withMedia(TwitterClientBase))))))),
+  ),
 ) as AbstractConstructor<TwitterClientInstance>;
 
 export class TwitterClient extends MixedTwitterClient {}
 
+export type { NewsFetchOptions, NewsItem, NewsResult } from './twitter-client-news.js';
 export type {
   BookmarkMutationResult,
   CurrentUserResult,

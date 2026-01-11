@@ -30,6 +30,10 @@ export const FALLBACK_QUERY_IDS = {
   ListMemberships: 'BlEXXdARdSeL_0KyKHHvvg',
   ListLatestTweetsTimeline: '2TemLyqrMpTeAmysdbnVqw',
   ListByRestId: 'wXzyA5vM_aVkBL9G8Vp3kw',
+  ExploreSidebar: 'lpSN4M6qpimkF4nRFPE3nQ',
+  ExplorePage: 'kheAINB_4pzRDqkzG3K-ng',
+  GenericTimelineById: 'uGSr7alSjR9v6QJAIaqSKQ',
+  TrendHistory: 'Sj4T-jSB9pr0Mxtsc1UKZQ',
 } as const;
 
 export type OperationName = keyof typeof FALLBACK_QUERY_IDS;
