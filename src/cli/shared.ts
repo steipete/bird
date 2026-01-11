@@ -7,6 +7,7 @@ import kleur from 'kleur';
 import { type CookieSource, resolveCredentials } from '../lib/cookies.js';
 import { extractTweetId } from '../lib/extract-tweet-id.js';
 import {
+  hyperlink,
   labelPrefix,
   type OutputConfig,
   resolveOutputConfigFromArgv,
@@ -323,7 +324,8 @@ export function createCliContext(normalizedArgs: string[], env: NodeJS.ProcessEn
       if (tweet.createdAt) {
         console.log(`${l('date')}${tweet.createdAt}`);
       }
-      console.log(`${l('url')}https://x.com/${tweet.author.username}/status/${tweet.id}`);
+      const tweetUrl = `https://x.com/${tweet.author.username}/status/${tweet.id}`;
+      console.log(`${l('url')}${hyperlink(tweetUrl, tweetUrl, output)}`);
       if (opts.showSeparator ?? true) {
         console.log('─'.repeat(50));
       }

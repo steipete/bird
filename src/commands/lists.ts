@@ -4,6 +4,7 @@
 import type { Command } from 'commander';
 import type { CliContext } from '../cli/shared.js';
 import { extractListId } from '../lib/extract-list-id.js';
+import { hyperlink } from '../lib/output.js';
 import type { TwitterList } from '../lib/twitter-client.js';
 import { TwitterClient } from '../lib/twitter-client.js';
 
@@ -23,7 +24,8 @@ function printLists(lists: TwitterList[], ctx: CliContext): void {
     if (list.owner) {
       console.log(`  ${ctx.colors.muted(`Owner: @${list.owner.username}`)}`);
     }
-    console.log(`  ${ctx.colors.accent(`https://x.com/i/lists/${list.id}`)}`);
+    const listUrl = `https://x.com/i/lists/${list.id}`;
+    console.log(`  ${ctx.colors.accent(hyperlink(listUrl, listUrl, ctx.getOutput()))}`);
     console.log('──────────────────────────────────────────────────');
   }
 }
