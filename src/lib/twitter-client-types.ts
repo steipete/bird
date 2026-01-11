@@ -127,6 +127,25 @@ export type GraphqlTweetResult = {
             };
           }>;
         }>;
+        /** Draft.js content state for rich article content */
+        content_state?: {
+          blocks: Array<{
+            key: string;
+            type: string;
+            text: string;
+            data?: Record<string, unknown>;
+            entityRanges: Array<{ key: number; offset: number; length: number }>;
+            inlineStyleRanges: Array<{ offset: number; length: number; style: string }>;
+          }>;
+          entityMap: Array<{
+            key: string;
+            value: {
+              type: string;
+              mutability: string;
+              data: Record<string, unknown>;
+            };
+          }>;
+        };
       };
     };
     title?: string;

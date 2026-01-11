@@ -287,4 +287,21 @@ d('live CLI (Twitter/X)', () => {
     expect(snapshot.cached).toBe(true);
     expect(snapshot.ids && Object.keys(snapshot.ids).length).toBeGreaterThan(0);
   });
+
+  it('long-form tweet (article) extracts rich content (opt-in)', async () => {
+    const longformTweetId = (process.env.BIRD_LIVE_LONGFORM_TWEET_ID ?? '').trim();
+    if (!longformTweetId) {
+      // Skip unless explicitly provided - long-form tweets may be deleted/unavailable
+      return;
+    }
+    const read = await runBird([...baseArgs, '--cookie-timeout', cookieTimeoutArg, 'read', longformTweetId, '--json'], {
+      timeoutMs: 45_000,
+    });
+    expect(read.exitCode).toBe(0);
+    const tweet = parseJson<{ id?: string; text?: string }>(read.stdout);
+    expect(tweet.id).toBe(longformTweetId);
+    // Long-form tweets (articles) typically have substantial content (>500 chars)
+    // This verifies the article content is being extracted, not just a stub
+    expect(tweet.text?.length).toBeGreaterThan(500);
+  });
 });

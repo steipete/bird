@@ -159,9 +159,15 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
         rweb_video_timestamps_enabled: true,
       };
 
+      const fieldToggles = {
+        ...buildArticleFieldToggles(),
+        withArticleRichContentState: true,
+      };
+
       const params = new URLSearchParams({
         variables: JSON.stringify(variables),
         features: JSON.stringify(features),
+        fieldToggles: JSON.stringify(fieldToggles),
       });
 
       try {
