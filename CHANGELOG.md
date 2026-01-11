@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1 — 2026-01-11
+
+### Fixed
+- macOS cookie extraction now supports Brave keychain storage (#40) — thanks @gakonst.
+
 ## 0.6.0 — 2026-01-05
 
 ### Added
