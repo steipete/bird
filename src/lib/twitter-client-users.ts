@@ -6,8 +6,8 @@ import {
   TWITTER_API_BASE,
 } from './twitter-client-constants.js';
 import { buildFollowingFeatures } from './twitter-client-features.js';
-import type { CurrentUserResult, FollowingResult } from './twitter-client-types.js';
-import { parseUsersFromInstructions } from './twitter-client-utils.js';
+import type { CurrentUserResult, FollowingResult, TwitterUser } from './twitter-client-types.js';
+import { parseUsersFromInstructions, extractCursorFromInstructions } from './twitter-client-utils.js';
 
 export interface TwitterClientUserMethods {
   getCurrentUser(): Promise<CurrentUserResult>;
@@ -307,23 +307,30 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
     }
 
     /**
-     * Get users that a user is following
+     * Get users that a user is following (with pagination)
      */
     async getFollowing(userId: string, count = 20): Promise<FollowingResult> {
-      const variables = {
-        userId,
-        count,
-        includePromotedContent: false,
-      };
+      const allUsers: TwitterUser[] = [];
+      let cursor: string | undefined;
+      const pageSize = Math.min(count, 50); // API seems to cap at 50 per page
+      
+      const fetchPage = async (pageCursor?: string) => {
+        const variables: Record<string, unknown> = {
+          userId,
+          count: pageSize,
+          includePromotedContent: false,
+        };
+        if (pageCursor) {
+          variables.cursor = pageCursor;
+        }
 
-      const features = buildFollowingFeatures();
+        const features = buildFollowingFeatures();
 
-      const params = new URLSearchParams({
-        variables: JSON.stringify(variables),
-        features: JSON.stringify(features),
-      });
+        const params = new URLSearchParams({
+          variables: JSON.stringify(variables),
+          features: JSON.stringify(features),
+        });
 
-      const tryOnce = async () => {
         let lastError: string | undefined;
         let had404 = false;
         const queryIds = await this.getFollowingQueryIds();
@@ -345,7 +352,7 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
             if (!response.ok) {
               const text = await response.text();
-              return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404 };
+              return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404, users: [], nextCursor: undefined };
             }
 
             const data = (await response.json()) as {
@@ -364,44 +371,59 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
             };
 
             if (data.errors && data.errors.length > 0) {
-              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404 };
+              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404, users: [], nextCursor: undefined };
             }
 
             const instructions = data.data?.user?.result?.timeline?.timeline?.instructions;
             const users = parseUsersFromInstructions(instructions);
+            const nextCursor = extractCursorFromInstructions(instructions as Array<{ entries?: Array<{ content?: unknown }> }>, 'Bottom');
 
-            return { success: true as const, users, had404 };
+            return { success: true as const, users, had404, nextCursor };
           } catch (error) {
             lastError = error instanceof Error ? error.message : String(error);
           }
         }
 
-        return { success: false as const, error: lastError ?? 'Unknown error fetching following', had404 };
+        return { success: false as const, error: lastError ?? 'Unknown error fetching following', had404, users: [], nextCursor: undefined };
       };
 
-      const firstAttempt = await tryOnce();
-      if (firstAttempt.success) {
-        return { success: true, users: firstAttempt.users };
-      }
-
-      if (firstAttempt.had404) {
-        await this.refreshQueryIds();
-        const secondAttempt = await tryOnce();
-        if (secondAttempt.success) {
-          return { success: true, users: secondAttempt.users };
+      // Fetch pages until we have enough users or no more pages
+      while (allUsers.length < count) {
+        const page = await fetchPage(cursor);
+        
+        if (!page.success) {
+          // If first page fails, try refresh and retry
+          if (allUsers.length === 0 && page.had404) {
+            await this.refreshQueryIds();
+            const retry = await fetchPage(cursor);
+            if (!retry.success) {
+              // Try REST fallback
+              const restAttempt = await this.getFollowingViaRest(userId, count);
+              if (restAttempt.success) {
+                return restAttempt;
+              }
+              return { success: false, error: retry.error };
+            }
+            allUsers.push(...retry.users);
+            cursor = retry.nextCursor;
+          } else if (allUsers.length > 0) {
+            // We have some users, return what we have
+            break;
+          } else {
+            return { success: false, error: page.error };
+          }
+        } else {
+          allUsers.push(...page.users);
+          cursor = page.nextCursor;
         }
 
-        // GraphQL Following can also return 404 (queryId churn / endpoint flakiness).
-        // Fallback to the internal v1.1 REST endpoint used by the web client (cookie-auth; no dev API key).
-        const restAttempt = await this.getFollowingViaRest(userId, count);
-        if (restAttempt.success) {
-          return restAttempt;
+        // No more pages
+        if (!cursor || page.users.length === 0) {
+          break;
         }
-
-        return { success: false, error: secondAttempt.error };
       }
 
-      return { success: false, error: firstAttempt.error };
+      return { success: true, users: allUsers.slice(0, count) };
     }
 
     /**
