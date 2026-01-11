@@ -1,9 +1,10 @@
 import type { AbstractConstructor, Mixin, TwitterClientBase } from './twitter-client-base.js';
 import { TWITTER_API_BASE } from './twitter-client-constants.js';
 import { buildArticleFeatures, buildArticleFieldToggles, buildTweetDetailFeatures } from './twitter-client-features.js';
-import type { GetTweetResult, GraphqlTweetResult, SearchResult } from './twitter-client-types.js';
+import type { GetTweetResult, GraphqlTweetResult, SearchResult, TweetData } from './twitter-client-types.js';
 import {
   extractArticleText,
+  extractCursorFromInstructions,
   findTweetInInstructions,
   firstText,
   mapTweetResult,
@@ -16,10 +17,22 @@ export interface TweetFetchOptions {
   includeRaw?: boolean;
 }
 
+/** Options for paginated tweet detail fetch */
+export interface TweetDetailPaginationOptions extends TweetFetchOptions {
+  /** Maximum number of pages to fetch (default: unlimited when using pagination) */
+  maxPages?: number;
+  /** Starting cursor for pagination (resume from previous fetch) */
+  cursor?: string;
+  /** Delay in milliseconds between page fetches (default: 1000) */
+  pageDelayMs?: number;
+}
+
 export interface TwitterClientTweetDetailMethods {
   getTweet(tweetId: string, options?: TweetFetchOptions): Promise<GetTweetResult>;
   getReplies(tweetId: string, options?: TweetFetchOptions): Promise<SearchResult>;
   getThread(tweetId: string, options?: TweetFetchOptions): Promise<SearchResult>;
+  getRepliesPaged(tweetId: string, options?: TweetDetailPaginationOptions): Promise<SearchResult>;
+  getThreadPaged(tweetId: string, options?: TweetDetailPaginationOptions): Promise<SearchResult>;
 }
 
 export function withTweetDetails<TBase extends AbstractConstructor<TwitterClientBase>>(
@@ -110,7 +123,14 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
       return {};
     }
 
-    private async fetchTweetDetail(tweetId: string): Promise<
+    private async sleep(ms: number): Promise<void> {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    private async fetchTweetDetail(
+      tweetId: string,
+      cursor?: string,
+    ): Promise<
       | {
           success: true;
           data: {
@@ -141,6 +161,7 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
         withQuickPromoteEligibilityTweetFields: true,
         withBirdwatchNotes: true,
         withVoice: true,
+        ...(cursor ? { cursor } : {}),
       };
 
       const features = {
@@ -339,6 +360,135 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
       });
 
       return { success: true, tweets: thread };
+    }
+
+    /**
+     * Get replies to a tweet with pagination support
+     */
+    async getRepliesPaged(tweetId: string, options: TweetDetailPaginationOptions = {}): Promise<SearchResult> {
+      const { includeRaw = false, maxPages, pageDelayMs = 1000 } = options;
+      const seen = new Set<string>();
+      const allReplies: TweetData[] = [];
+      let cursor: string | undefined = options.cursor;
+      let nextCursor: string | undefined;
+      let pagesFetched = 0;
+
+      while (true) {
+        // Add delay between pages (but not before the first page)
+        if (pagesFetched > 0 && pageDelayMs > 0) {
+          await this.sleep(pageDelayMs);
+        }
+
+        const response = await this.fetchTweetDetail(tweetId, cursor);
+        if (!response.success) {
+          // If we have some replies already, return them with the error
+          if (allReplies.length > 0) {
+            return { success: true, tweets: allReplies, nextCursor: cursor, error: response.error };
+          }
+          return response;
+        }
+        pagesFetched += 1;
+
+        const instructions = response.data.threaded_conversation_with_injections_v2?.instructions;
+        const tweets = parseTweetsFromInstructions(instructions, { quoteDepth: this.quoteDepth, includeRaw });
+        const replies = tweets.filter((tweet) => tweet.inReplyToStatusId === tweetId);
+
+        for (const reply of replies) {
+          if (seen.has(reply.id)) {
+            continue;
+          }
+          seen.add(reply.id);
+          allReplies.push(reply);
+        }
+
+        const pageCursor = extractCursorFromInstructions(instructions);
+        if (!pageCursor || pageCursor === cursor || replies.length === 0) {
+          nextCursor = undefined;
+          break;
+        }
+
+        if (maxPages && pagesFetched >= maxPages) {
+          nextCursor = pageCursor;
+          break;
+        }
+
+        cursor = pageCursor;
+        nextCursor = pageCursor;
+      }
+
+      return { success: true, tweets: allReplies, nextCursor };
+    }
+
+    /**
+     * Get full conversation thread with pagination support
+     */
+    async getThreadPaged(tweetId: string, options: TweetDetailPaginationOptions = {}): Promise<SearchResult> {
+      const { includeRaw = false, maxPages, pageDelayMs = 1000 } = options;
+      const seen = new Set<string>();
+      const allTweets: TweetData[] = [];
+      let cursor: string | undefined = options.cursor;
+      let nextCursor: string | undefined;
+      let pagesFetched = 0;
+      let rootId: string | undefined;
+
+      while (true) {
+        // Add delay between pages (but not before the first page)
+        if (pagesFetched > 0 && pageDelayMs > 0) {
+          await this.sleep(pageDelayMs);
+        }
+
+        const response = await this.fetchTweetDetail(tweetId, cursor);
+        if (!response.success) {
+          // If we have some tweets already, return them with the error
+          if (allTweets.length > 0) {
+            return { success: true, tweets: allTweets, nextCursor: cursor, error: response.error };
+          }
+          return response;
+        }
+        pagesFetched += 1;
+
+        const instructions = response.data.threaded_conversation_with_injections_v2?.instructions;
+        const tweets = parseTweetsFromInstructions(instructions, { quoteDepth: this.quoteDepth, includeRaw });
+
+        // Determine root conversation ID from first page
+        if (!rootId) {
+          const target = tweets.find((t) => t.id === tweetId);
+          rootId = target?.conversationId || tweetId;
+        }
+
+        const threadTweets = tweets.filter((tweet) => tweet.conversationId === rootId);
+
+        for (const tweet of threadTweets) {
+          if (seen.has(tweet.id)) {
+            continue;
+          }
+          seen.add(tweet.id);
+          allTweets.push(tweet);
+        }
+
+        const pageCursor = extractCursorFromInstructions(instructions);
+        if (!pageCursor || pageCursor === cursor || threadTweets.length === 0) {
+          nextCursor = undefined;
+          break;
+        }
+
+        if (maxPages && pagesFetched >= maxPages) {
+          nextCursor = pageCursor;
+          break;
+        }
+
+        cursor = pageCursor;
+        nextCursor = pageCursor;
+      }
+
+      // Sort by creation time
+      allTweets.sort((a, b) => {
+        const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
+        const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
+        return aTime - bTime;
+      });
+
+      return { success: true, tweets: allTweets, nextCursor };
     }
   }
 

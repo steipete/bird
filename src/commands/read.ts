@@ -53,72 +53,174 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
     .command('replies')
     .description('List replies to a tweet (by ID or URL)')
     .argument('<tweet-id-or-url>', 'Tweet ID or URL')
+    .option('--all', 'Fetch all replies (paged)')
+    .option('--max-pages <number>', 'Stop after N pages when using --all')
+    .option('--delay <ms>', 'Delay in ms between page fetches (default: 1000)')
+    .option('--cursor <string>', 'Resume pagination from a cursor')
     .option('--json', 'Output as JSON')
     .option('--json-full', 'Output as JSON with full raw API response in _raw field')
-    .action(async (tweetIdOrUrl: string, cmdOpts: { json?: boolean; jsonFull?: boolean }) => {
-      const opts = program.opts();
-      const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
-      const quoteDepth = ctx.resolveQuoteDepthFromOptions(opts);
-      const tweetId = ctx.extractTweetId(tweetIdOrUrl);
+    .action(
+      async (
+        tweetIdOrUrl: string,
+        cmdOpts: {
+          all?: boolean;
+          maxPages?: string;
+          delay?: string;
+          cursor?: string;
+          json?: boolean;
+          jsonFull?: boolean;
+        },
+      ) => {
+        const opts = program.opts();
+        const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
+        const quoteDepth = ctx.resolveQuoteDepthFromOptions(opts);
+        const tweetId = ctx.extractTweetId(tweetIdOrUrl);
+        const maxPages = cmdOpts.maxPages ? Number.parseInt(cmdOpts.maxPages, 10) : undefined;
+        const pageDelayMs = cmdOpts.delay ? Number.parseInt(cmdOpts.delay, 10) : 1000;
 
-      const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
+        const usePagination = cmdOpts.all || cmdOpts.cursor;
+        if (maxPages !== undefined && !usePagination) {
+          console.error(`${ctx.p('err')}--max-pages requires --all or --cursor.`);
+          process.exit(1);
+        }
+        if (maxPages !== undefined && (!Number.isFinite(maxPages) || maxPages <= 0)) {
+          console.error(`${ctx.p('err')}Invalid --max-pages. Expected a positive integer.`);
+          process.exit(1);
+        }
+        if (!Number.isFinite(pageDelayMs) || pageDelayMs < 0) {
+          console.error(`${ctx.p('err')}Invalid --delay. Expected a non-negative integer.`);
+          process.exit(1);
+        }
 
-      for (const warning of warnings) {
-        console.error(`${ctx.p('warn')}${warning}`);
-      }
+        const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
 
-      if (!cookies.authToken || !cookies.ct0) {
-        console.error(`${ctx.p('err')}Missing required credentials`);
-        process.exit(1);
-      }
+        for (const warning of warnings) {
+          console.error(`${ctx.p('warn')}${warning}`);
+        }
 
-      const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
-      const includeRaw = cmdOpts.jsonFull ?? false;
-      const result = await client.getReplies(tweetId, { includeRaw });
+        if (!cookies.authToken || !cookies.ct0) {
+          console.error(`${ctx.p('err')}Missing required credentials`);
+          process.exit(1);
+        }
 
-      if (result.success && result.tweets) {
-        ctx.printTweets(result.tweets, { json: cmdOpts.json || cmdOpts.jsonFull, emptyMessage: 'No replies found.' });
-      } else {
-        console.error(`${ctx.p('err')}Failed to fetch replies: ${result.error}`);
-        process.exit(1);
-      }
-    });
+        const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
+        const includeRaw = cmdOpts.jsonFull ?? false;
+
+        const result = usePagination
+          ? await client.getRepliesPaged(tweetId, {
+              includeRaw,
+              maxPages,
+              cursor: cmdOpts.cursor,
+              pageDelayMs,
+            })
+          : await client.getReplies(tweetId, { includeRaw });
+
+        if (result.success && result.tweets) {
+          const isJson = cmdOpts.json || cmdOpts.jsonFull;
+          if (isJson && usePagination) {
+            console.log(JSON.stringify({ tweets: result.tweets, nextCursor: result.nextCursor ?? null }, null, 2));
+          } else {
+            ctx.printTweets(result.tweets, { json: isJson, emptyMessage: 'No replies found.' });
+          }
+
+          // Show pagination hint if there's more
+          if (result.nextCursor && !isJson) {
+            console.error(`${ctx.p('info')}More replies available. Use --cursor "${result.nextCursor}" to continue.`);
+          }
+        } else {
+          console.error(`${ctx.p('err')}Failed to fetch replies: ${result.error}`);
+          process.exit(1);
+        }
+      },
+    );
 
   program
     .command('thread')
     .description('Show the full conversation thread containing the tweet')
     .argument('<tweet-id-or-url>', 'Tweet ID or URL')
+    .option('--all', 'Fetch all thread tweets (paged)')
+    .option('--max-pages <number>', 'Stop after N pages when using --all')
+    .option('--delay <ms>', 'Delay in ms between page fetches (default: 1000)')
+    .option('--cursor <string>', 'Resume pagination from a cursor')
     .option('--json', 'Output as JSON')
     .option('--json-full', 'Output as JSON with full raw API response in _raw field')
-    .action(async (tweetIdOrUrl: string, cmdOpts: { json?: boolean; jsonFull?: boolean }) => {
-      const opts = program.opts();
-      const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
-      const quoteDepth = ctx.resolveQuoteDepthFromOptions(opts);
-      const tweetId = ctx.extractTweetId(tweetIdOrUrl);
+    .action(
+      async (
+        tweetIdOrUrl: string,
+        cmdOpts: {
+          all?: boolean;
+          maxPages?: string;
+          delay?: string;
+          cursor?: string;
+          json?: boolean;
+          jsonFull?: boolean;
+        },
+      ) => {
+        const opts = program.opts();
+        const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
+        const quoteDepth = ctx.resolveQuoteDepthFromOptions(opts);
+        const tweetId = ctx.extractTweetId(tweetIdOrUrl);
+        const maxPages = cmdOpts.maxPages ? Number.parseInt(cmdOpts.maxPages, 10) : undefined;
+        const pageDelayMs = cmdOpts.delay ? Number.parseInt(cmdOpts.delay, 10) : 1000;
 
-      const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
+        const usePagination = cmdOpts.all || cmdOpts.cursor;
+        if (maxPages !== undefined && !usePagination) {
+          console.error(`${ctx.p('err')}--max-pages requires --all or --cursor.`);
+          process.exit(1);
+        }
+        if (maxPages !== undefined && (!Number.isFinite(maxPages) || maxPages <= 0)) {
+          console.error(`${ctx.p('err')}Invalid --max-pages. Expected a positive integer.`);
+          process.exit(1);
+        }
+        if (!Number.isFinite(pageDelayMs) || pageDelayMs < 0) {
+          console.error(`${ctx.p('err')}Invalid --delay. Expected a non-negative integer.`);
+          process.exit(1);
+        }
 
-      for (const warning of warnings) {
-        console.error(`${ctx.p('warn')}${warning}`);
-      }
+        const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
 
-      if (!cookies.authToken || !cookies.ct0) {
-        console.error(`${ctx.p('err')}Missing required credentials`);
-        process.exit(1);
-      }
+        for (const warning of warnings) {
+          console.error(`${ctx.p('warn')}${warning}`);
+        }
 
-      const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
-      const includeRaw = cmdOpts.jsonFull ?? false;
-      const result = await client.getThread(tweetId, { includeRaw });
+        if (!cookies.authToken || !cookies.ct0) {
+          console.error(`${ctx.p('err')}Missing required credentials`);
+          process.exit(1);
+        }
 
-      if (result.success && result.tweets) {
-        ctx.printTweets(result.tweets, {
-          json: cmdOpts.json || cmdOpts.jsonFull,
-          emptyMessage: 'No thread tweets found.',
-        });
-      } else {
-        console.error(`${ctx.p('err')}Failed to fetch thread: ${result.error}`);
-        process.exit(1);
-      }
-    });
+        const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
+        const includeRaw = cmdOpts.jsonFull ?? false;
+
+        const result = usePagination
+          ? await client.getThreadPaged(tweetId, {
+              includeRaw,
+              maxPages,
+              cursor: cmdOpts.cursor,
+              pageDelayMs,
+            })
+          : await client.getThread(tweetId, { includeRaw });
+
+        if (result.success && result.tweets) {
+          const isJson = cmdOpts.json || cmdOpts.jsonFull;
+          if (isJson && usePagination) {
+            console.log(JSON.stringify({ tweets: result.tweets, nextCursor: result.nextCursor ?? null }, null, 2));
+          } else {
+            ctx.printTweets(result.tweets, {
+              json: isJson,
+              emptyMessage: 'No thread tweets found.',
+            });
+          }
+
+          // Show pagination hint if there's more
+          if (result.nextCursor && !isJson) {
+            console.error(
+              `${ctx.p('info')}More thread tweets available. Use --cursor "${result.nextCursor}" to continue.`,
+            );
+          }
+        } else {
+          console.error(`${ctx.p('err')}Failed to fetch thread: ${result.error}`);
+          process.exit(1);
+        }
+      },
+    );
 }
