@@ -7,12 +7,12 @@ import {
 } from './twitter-client-constants.js';
 import { buildFollowingFeatures } from './twitter-client-features.js';
 import type { CurrentUserResult, FollowingResult } from './twitter-client-types.js';
-import { parseUsersFromInstructions } from './twitter-client-utils.js';
+import { extractCursorFromInstructions, parseUsersFromInstructions } from './twitter-client-utils.js';
 
 export interface TwitterClientUserMethods {
   getCurrentUser(): Promise<CurrentUserResult>;
-  getFollowing(userId: string, count?: number): Promise<FollowingResult>;
-  getFollowers(userId: string, count?: number): Promise<FollowingResult>;
+  getFollowing(userId: string, count?: number, cursor?: string): Promise<FollowingResult>;
+  getFollowers(userId: string, count?: number, cursor?: string): Promise<FollowingResult>;
 }
 
 export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
@@ -309,12 +309,16 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
     /**
      * Get users that a user is following
      */
-    async getFollowing(userId: string, count = 20): Promise<FollowingResult> {
-      const variables = {
+    async getFollowing(userId: string, count = 20, cursor?: string): Promise<FollowingResult> {
+      const variables: Record<string, unknown> = {
         userId,
         count,
         includePromotedContent: false,
       };
+
+      if (cursor) {
+        variables.cursor = cursor;
+      }
 
       const features = buildFollowingFeatures();
 
@@ -369,8 +373,11 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
             const instructions = data.data?.user?.result?.timeline?.timeline?.instructions;
             const users = parseUsersFromInstructions(instructions);
+            const nextCursor = extractCursorFromInstructions(
+              instructions as Array<{ entries?: Array<{ content?: unknown }> }> | undefined,
+            );
 
-            return { success: true as const, users, had404 };
+            return { success: true as const, users, nextCursor, had404 };
           } catch (error) {
             lastError = error instanceof Error ? error.message : String(error);
           }
@@ -381,18 +388,19 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
       const firstAttempt = await tryOnce();
       if (firstAttempt.success) {
-        return { success: true, users: firstAttempt.users };
+        return { success: true, users: firstAttempt.users, nextCursor: firstAttempt.nextCursor };
       }
 
       if (firstAttempt.had404) {
         await this.refreshQueryIds();
         const secondAttempt = await tryOnce();
         if (secondAttempt.success) {
-          return { success: true, users: secondAttempt.users };
+          return { success: true, users: secondAttempt.users, nextCursor: secondAttempt.nextCursor };
         }
 
         // GraphQL Following can also return 404 (queryId churn / endpoint flakiness).
         // Fallback to the internal v1.1 REST endpoint used by the web client (cookie-auth; no dev API key).
+        // Note: REST fallback does not support cursor pagination.
         const restAttempt = await this.getFollowingViaRest(userId, count);
         if (restAttempt.success) {
           return restAttempt;
@@ -407,12 +415,16 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
     /**
      * Get users that follow a user
      */
-    async getFollowers(userId: string, count = 20): Promise<FollowingResult> {
-      const variables = {
+    async getFollowers(userId: string, count = 20, cursor?: string): Promise<FollowingResult> {
+      const variables: Record<string, unknown> = {
         userId,
         count,
         includePromotedContent: false,
       };
+
+      if (cursor) {
+        variables.cursor = cursor;
+      }
 
       const features = buildFollowingFeatures();
 
@@ -467,8 +479,11 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
             const instructions = data.data?.user?.result?.timeline?.timeline?.instructions;
             const users = parseUsersFromInstructions(instructions);
+            const nextCursor = extractCursorFromInstructions(
+              instructions as Array<{ entries?: Array<{ content?: unknown }> }> | undefined,
+            );
 
-            return { success: true as const, users, had404 };
+            return { success: true as const, users, nextCursor, had404 };
           } catch (error) {
             lastError = error instanceof Error ? error.message : String(error);
           }
@@ -479,18 +494,19 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
       const firstAttempt = await tryOnce();
       if (firstAttempt.success) {
-        return { success: true, users: firstAttempt.users };
+        return { success: true, users: firstAttempt.users, nextCursor: firstAttempt.nextCursor };
       }
 
       if (firstAttempt.had404) {
         await this.refreshQueryIds();
         const secondAttempt = await tryOnce();
         if (secondAttempt.success) {
-          return { success: true, users: secondAttempt.users };
+          return { success: true, users: secondAttempt.users, nextCursor: secondAttempt.nextCursor };
         }
 
         // GraphQL Followers regularly returns 404 (queryId churn / endpoint flakiness).
         // Fallback to the internal v1.1 REST endpoint used by the web client (cookie-auth; no dev API key).
+        // Note: REST fallback does not support cursor pagination.
         const restAttempt = await this.getFollowersViaRest(userId, count);
         if (restAttempt.success) {
           return restAttempt;
