@@ -216,7 +216,15 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
           };
 
           if (data.errors && data.errors.length > 0) {
-            return { success: false as const, error: data.errors.map((e) => e.message).join(', ') };
+            // Twitter API sometimes returns partial errors (e.g., is_translatable failures)
+            // alongside valid tweet/thread data. Only fail if nothing useful is present.
+            const hasUsableData = Boolean(
+              data.data?.tweetResult?.result ||
+                data.data?.threaded_conversation_with_injections_v2?.instructions?.length,
+            );
+            if (!hasUsableData) {
+              return { success: false as const, error: data.errors.map((e) => e.message).join(', ') };
+            }
           }
 
           return { success: true as const, data: data.data ?? {} };

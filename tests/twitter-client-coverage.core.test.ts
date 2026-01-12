@@ -185,6 +185,89 @@ describe('TwitterClient core coverage', () => {
       expect(result.error).toBe('bad news');
     });
 
+    it('allows partial errors when tweetResult is present', async () => {
+      const mockFetch = vi.fn().mockResolvedValueOnce(
+        makeResponse({
+          json: async () => ({
+            data: {
+              tweetResult: {
+                result: {
+                  rest_id: '1',
+                  legacy: {
+                    full_text: 'hi',
+                    created_at: '2024-01-01T00:00:00Z',
+                    reply_count: 0,
+                    retweet_count: 0,
+                    favorite_count: 0,
+                  },
+                  core: { user_results: { result: { legacy: { screen_name: 'user', name: 'User' } } } },
+                },
+              },
+            },
+            errors: [{ message: 'field error' }],
+          }),
+        }),
+      );
+      global.fetch = mockFetch as unknown as typeof fetch;
+
+      const client = new TwitterClient({ cookies: validCookies });
+      const clientPrivate = client as unknown as TwitterClientPrivate;
+      const result = await clientPrivate.fetchTweetDetail('1');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.tweetResult).toBeDefined();
+    });
+
+    it('allows partial errors when instructions are present', async () => {
+      const mockFetch = vi.fn().mockResolvedValueOnce(
+        makeResponse({
+          json: async () => ({
+            data: {
+              threaded_conversation_with_injections_v2: {
+                instructions: [
+                  {
+                    entries: [
+                      {
+                        content: {
+                          itemContent: {
+                            tweet_results: {
+                              result: {
+                                rest_id: '2',
+                                legacy: {
+                                  full_text: 'thread tweet',
+                                  created_at: '2024-01-01T00:00:00Z',
+                                  reply_count: 0,
+                                  retweet_count: 0,
+                                  favorite_count: 0,
+                                  conversation_id_str: '2',
+                                },
+                                core: {
+                                  user_results: { result: { legacy: { screen_name: 'user', name: 'User' } } },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+            errors: [{ message: 'is_translatable error' }],
+          }),
+        }),
+      );
+      global.fetch = mockFetch as unknown as typeof fetch;
+
+      const client = new TwitterClient({ cookies: validCookies });
+      const clientPrivate = client as unknown as TwitterClientPrivate;
+      const result = await clientPrivate.fetchTweetDetail('2');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.threaded_conversation_with_injections_v2?.instructions?.length).toBe(1);
+    });
+
     it('parses POST responses when GET returns 404', async () => {
       const mockFetch = vi
         .fn()
