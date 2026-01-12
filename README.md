@@ -48,6 +48,10 @@ bird search "from:steipete" -n 5
 bird mentions -n 5
 bird mentions --user @steipete -n 5
 
+# User tweets (profile timeline)
+bird user-tweets @steipete -n 20
+bird user-tweets @steipete -n 50 --json
+
 # Bookmarks
 bird bookmarks -n 5
 bird bookmarks --folder-id 123456789123456789 -n 5 # https://x.com/i/bookmarks/<folder-id>
@@ -100,6 +104,7 @@ const result = await client.search('from:steipete', 50);
 - `bird thread <tweet-id-or-url> [--json]` — show the full conversation thread.
 - `bird search "<query>" [-n count] [--json]` — search for tweets matching a query.
 - `bird mentions [-n count] [--user @handle] [--json]` — find tweets mentioning a user (defaults to the authenticated user).
+- `bird user-tweets <@handle> [-n count] [--cursor string] [--max-pages n] [--delay ms] [--json]` — get tweets from a user's profile timeline.
 - `bird bookmarks [-n count] [--folder-id id] [--all] [--max-pages n] [--json]` — list your bookmarked tweets (or a specific bookmark folder); `--max-pages` requires `--all`.
 - `bird unbookmark <tweet-id-or-url...>` — remove one or more bookmarks by tweet ID or URL.
 - `bird likes [-n count] [--json]` — list your liked tweets.
@@ -171,7 +176,8 @@ Environment shortcuts:
 
 ## Output
 
-- `--json` prints raw tweet objects for read/replies/thread/search/mentions/bookmarks/likes.
+- `--json` prints raw tweet objects for read/replies/thread/search/mentions/user-tweets/bookmarks/likes.
+- When using `--json` with pagination (`--cursor`, `--max-pages`, or `-n > 20`), `user-tweets` prints `{ tweets, nextCursor }`.
 - `read` returns full text for Notes and Articles when present.
 - Use `--plain` for stable, script-friendly output (no emoji, no color).
 
