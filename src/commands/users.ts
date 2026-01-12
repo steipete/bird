@@ -313,4 +313,55 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
         process.exit(1);
       }
     });
+
+  program
+    .command('about')
+    .description('Get account origin and location information for a user')
+    .argument('<username>', 'Twitter username (with or without @)')
+    .option('--json', 'Output as JSON')
+    .action(async (username: string, cmdOpts: { json?: boolean }) => {
+      const opts = program.opts();
+      const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
+
+      const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
+
+      for (const warning of warnings) {
+        console.error(`${ctx.p('warn')}${warning}`);
+      }
+
+      if (!cookies.authToken || !cookies.ct0) {
+        console.error(`${ctx.p('err')}Missing required credentials`);
+        process.exit(1);
+      }
+
+      const client = new TwitterClient({ cookies, timeoutMs });
+      const result = await client.getUserAboutAccount(username);
+
+      if (result.success && result.aboutProfile) {
+        if (cmdOpts.json) {
+          console.log(JSON.stringify(result.aboutProfile, null, 2));
+        } else {
+          const profile = result.aboutProfile;
+          console.log(`${ctx.p('info')}Account information for @${username}:`);
+          if (profile.accountBasedIn) {
+            console.log(`  Account based in: ${profile.accountBasedIn}`);
+          }
+          if (profile.createdCountryAccurate !== undefined) {
+            console.log(`  Creation country accurate: ${profile.createdCountryAccurate ? 'Yes' : 'No'}`);
+          }
+          if (profile.locationAccurate !== undefined) {
+            console.log(`  Location accurate: ${profile.locationAccurate ? 'Yes' : 'No'}`);
+          }
+          if (profile.source) {
+            console.log(`${ctx.l('source')}${profile.source}`);
+          }
+          if (profile.learnMoreUrl) {
+            console.log(`  Learn more: ${profile.learnMoreUrl}`);
+          }
+        }
+      } else {
+        console.error(`${ctx.p('err')}Failed to fetch account information: ${result.error ?? 'Unknown error'}`);
+        process.exit(1);
+      }
+    });
 }

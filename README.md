@@ -146,6 +146,22 @@ const sportsNews = await client.getNews(10, {
 });
 ```
 
+Account details (About profile):
+
+```ts
+const aboutResult = await client.getUserAboutAccount('steipete');
+if (aboutResult.success && aboutResult.aboutProfile) {
+  console.log(aboutResult.aboutProfile.accountBasedIn);
+}
+```
+
+Fields:
+- `accountBasedIn`
+- `source`
+- `createdCountryAccurate`
+- `locationAccurate`
+- `learnMoreUrl`
+
 ## Commands
 
 - `bird tweet "<text>"` — post a new tweet.
@@ -169,6 +185,7 @@ const sportsNews = await client.getNews(10, {
 - `bird list-timeline <list-id-or-url> [-n count] [--all] [--max-pages n] [--cursor string] [--json]` — get tweets from a list timeline; `--max-pages` implies `--all`.
 - `bird following [--user <userId>] [-n count] [--cursor string] [--all] [--max-pages n] [--json]` — list users that you (or another user) follow; `--max-pages` requires `--all`.
 - `bird followers [--user <userId>] [-n count] [--cursor string] [--all] [--max-pages n] [--json]` — list users that follow you (or another user); `--max-pages` requires `--all`.
+- `bird about <@handle> [--json]` — get account origin and location information for a user.
 - `bird whoami` — print which Twitter account your cookies belong to.
 - `bird check` — show which credentials are available and where they were sourced from.
 

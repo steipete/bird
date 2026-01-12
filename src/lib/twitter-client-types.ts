@@ -326,6 +326,20 @@ export interface FollowingResult {
   nextCursor?: string;
 }
 
+export interface AboutAccountProfile {
+  accountBasedIn?: string;
+  source?: string;
+  createdCountryAccurate?: boolean;
+  locationAccurate?: boolean;
+  learnMoreUrl?: string;
+}
+
+export interface AboutAccountResult {
+  success: boolean;
+  aboutProfile?: AboutAccountProfile;
+  error?: string;
+}
+
 export interface TwitterClientOptions {
   cookies: TwitterCookies;
   userAgent?: string;

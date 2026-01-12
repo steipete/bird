@@ -23,6 +23,7 @@ const TARGET_OPERATIONS = [
   'ExplorePage',
   'GenericTimelineById',
   'TrendHistory',
+  'AboutAccountQuery',
 ] as const;
 
 type OperationName = (typeof TARGET_OPERATIONS)[number];

@@ -1,6 +1,7 @@
 import { normalizeHandle } from './normalize-handle.js';
 import type { AbstractConstructor, Mixin, TwitterClientBase } from './twitter-client-base.js';
 import { TWITTER_API_BASE } from './twitter-client-constants.js';
+import type { AboutAccountResult } from './twitter-client-types.js';
 
 /** Result of username to userId lookup */
 export interface UserLookupResult {
@@ -13,6 +14,7 @@ export interface UserLookupResult {
 
 export interface TwitterClientUserLookupMethods {
   getUserIdByUsername(username: string): Promise<UserLookupResult>;
+  getUserAboutAccount(username: string): Promise<AboutAccountResult>;
 }
 
 export function withUserLookup<TBase extends AbstractConstructor<TwitterClientBase>>(
@@ -204,6 +206,97 @@ export function withUserLookup<TBase extends AbstractConstructor<TwitterClientBa
       }
 
       return { success: false, error: lastError ?? 'Unknown error looking up user' };
+    }
+
+    private async getAboutAccountQueryIds(): Promise<string[]> {
+      const primary = await this.getQueryId('AboutAccountQuery');
+      return Array.from(new Set([primary, 'zs_jFPFT78rBpXv9Z3U2YQ']));
+    }
+
+    /**
+     * Get account origin and location information for a user.
+     * Returns data from Twitter's "About this account" feature.
+     */
+    async getUserAboutAccount(username: string): Promise<AboutAccountResult> {
+      const cleanUsername = normalizeHandle(username);
+      if (!cleanUsername) {
+        return { success: false, error: `Invalid username: ${username}` };
+      }
+
+      const variables = {
+        screenName: cleanUsername,
+      };
+
+      const params = new URLSearchParams({
+        variables: JSON.stringify(variables),
+      });
+
+      let lastError: string | undefined;
+      const queryIds = await this.getAboutAccountQueryIds();
+
+      for (const queryId of queryIds) {
+        const url = `${TWITTER_API_BASE}/${queryId}/AboutAccountQuery?${params.toString()}`;
+
+        try {
+          const response = await this.fetchWithTimeout(url, {
+            method: 'GET',
+            headers: this.getHeaders(),
+          });
+
+          if (!response.ok) {
+            const text = await response.text();
+            if (response.status === 404) {
+              lastError = `HTTP ${response.status}`;
+              continue;
+            }
+            lastError = `HTTP ${response.status}: ${text.slice(0, 200)}`;
+            continue;
+          }
+
+          const data = (await response.json()) as {
+            data?: {
+              user_result_by_screen_name?: {
+                result?: {
+                  about_profile?: {
+                    account_based_in?: string;
+                    source?: string;
+                    created_country_accurate?: boolean;
+                    location_accurate?: boolean;
+                    learn_more_url?: string;
+                  };
+                };
+              };
+            };
+            errors?: Array<{ message: string }>;
+          };
+
+          if (data.errors && data.errors.length > 0) {
+            lastError = data.errors.map((e) => e.message).join(', ');
+            continue;
+          }
+
+          const aboutProfile = data.data?.user_result_by_screen_name?.result?.about_profile;
+          if (!aboutProfile) {
+            lastError = 'Missing about_profile in response';
+            continue;
+          }
+
+          return {
+            success: true,
+            aboutProfile: {
+              accountBasedIn: aboutProfile.account_based_in,
+              source: aboutProfile.source,
+              createdCountryAccurate: aboutProfile.created_country_accurate,
+              locationAccurate: aboutProfile.location_accurate,
+              learnMoreUrl: aboutProfile.learn_more_url,
+            },
+          };
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      return { success: false, error: lastError ?? 'Unknown error fetching account details' };
     }
   }
 
