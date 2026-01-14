@@ -69,13 +69,11 @@ describe('TwitterClient engagement', () => {
     });
 
     it('retries on 404 with refreshed query IDs', async () => {
-      mockFetch
-        .mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'Not found' })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: async () => ({ data: { favorite_tweet: 'Done' } }),
-        });
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'Not found' }).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { favorite_tweet: 'Done' } }),
+      });
 
       const client = new TwitterClient({ cookies: validCookies });
       const result = await client.like('1234567890');
