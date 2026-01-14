@@ -10,7 +10,10 @@ import path from 'node:path';
 const TARGET_OPERATIONS = [
   'CreateTweet',
   'CreateRetweet',
+  'DeleteRetweet',
   'FavoriteTweet',
+  'UnfavoriteTweet',
+  'CreateBookmark',
   'DeleteBookmark',
   'TweetDetail',
   'SearchTimeline',
