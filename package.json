@@ -1,6 +1,6 @@
 {
   "name": "@steipete/bird",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "CLI tool for tweeting and replying via Twitter/X GraphQL API",
   "type": "module",
   "main": "dist/index.js",

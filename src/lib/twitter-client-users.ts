@@ -70,13 +70,17 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
         .filter((u) => u !== null);
     }
 
-    private async getFollowersViaRest(userId: string, count: number): Promise<FollowingResult> {
+    private async getFollowersViaRest(userId: string, count: number, cursor?: string): Promise<FollowingResult> {
       const params = new URLSearchParams({
         user_id: userId,
         count: String(count),
         skip_status: 'true',
         include_user_entities: 'false',
       });
+
+      if (cursor) {
+        params.set('cursor', cursor);
+      }
 
       const urls = [
         `https://x.com/i/api/1.1/followers/list.json?${params.toString()}`,
@@ -100,11 +104,13 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
           const data = (await response.json()) as {
             users?: RestUser[];
+            next_cursor_str?: string;
           };
 
           const users = this.parseUsersFromRestResponse(data.users);
+          const nextCursor = data.next_cursor_str && data.next_cursor_str !== '0' ? data.next_cursor_str : undefined;
 
-          return { success: true, users };
+          return { success: true, users, nextCursor };
         } catch (error) {
           lastError = error instanceof Error ? error.message : String(error);
         }
@@ -113,13 +119,17 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
       return { success: false, error: lastError ?? 'Unknown error fetching followers' };
     }
 
-    private async getFollowingViaRest(userId: string, count: number): Promise<FollowingResult> {
+    private async getFollowingViaRest(userId: string, count: number, cursor?: string): Promise<FollowingResult> {
       const params = new URLSearchParams({
         user_id: userId,
         count: String(count),
         skip_status: 'true',
         include_user_entities: 'false',
       });
+
+      if (cursor) {
+        params.set('cursor', cursor);
+      }
 
       const urls = [
         `https://x.com/i/api/1.1/friends/list.json?${params.toString()}`,
@@ -143,11 +153,13 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
           const data = (await response.json()) as {
             users?: RestUser[];
+            next_cursor_str?: string;
           };
 
           const users = this.parseUsersFromRestResponse(data.users);
+          const nextCursor = data.next_cursor_str && data.next_cursor_str !== '0' ? data.next_cursor_str : undefined;
 
-          return { success: true, users };
+          return { success: true, users, nextCursor };
         } catch (error) {
           lastError = error instanceof Error ? error.message : String(error);
         }
@@ -376,8 +388,7 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
         // GraphQL Following can also return 404 (queryId churn / endpoint flakiness).
         // Fallback to the internal v1.1 REST endpoint used by the web client (cookie-auth; no dev API key).
-        // Note: REST fallback does not support cursor pagination.
-        const restAttempt = await this.getFollowingViaRest(userId, count);
+        const restAttempt = await this.getFollowingViaRest(userId, count, cursor);
         if (restAttempt.success) {
           return restAttempt;
         }
@@ -482,8 +493,7 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
         // GraphQL Followers regularly returns 404 (queryId churn / endpoint flakiness).
         // Fallback to the internal v1.1 REST endpoint used by the web client (cookie-auth; no dev API key).
-        // Note: REST fallback does not support cursor pagination.
-        const restAttempt = await this.getFollowersViaRest(userId, count);
+        const restAttempt = await this.getFollowersViaRest(userId, count, cursor);
         if (restAttempt.success) {
           return restAttempt;
         }

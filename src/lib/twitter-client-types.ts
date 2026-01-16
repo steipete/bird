@@ -230,6 +230,17 @@ export type BookmarkMutationResult =
       error: string;
     };
 
+export type FollowMutationResult =
+  | {
+      success: true;
+      userId?: string;
+      username?: string;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
 export interface UploadMediaResult {
   success: boolean;
   mediaId?: string;
