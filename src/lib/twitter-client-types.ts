@@ -275,6 +275,13 @@ export interface TweetData {
   _raw?: GraphqlTweetResult;
 }
 
+export interface TweetWithMeta extends TweetData {
+  isThread: boolean;
+  threadPosition: 'root' | 'middle' | 'end' | 'standalone';
+  hasSelfReplies: boolean;
+  threadRootId: string | null;
+}
+
 export interface GetTweetResult {
   success: boolean;
   tweet?: TweetData;
