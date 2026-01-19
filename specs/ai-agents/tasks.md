@@ -715,7 +715,7 @@ cd ai-agents-responder && bun run tsc --noEmit && cat data/seed-authors.json | j
 
 ---
 
-### Task 1.23: POC E2E validation - end-to-end pipeline test
+### Task 1.23: POC E2E validation - end-to-end pipeline test [x]
 
 **Do**:
 1. Create manual E2E validation script `scripts/e2e-test.sh`:
