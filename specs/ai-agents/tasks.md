@@ -104,7 +104,7 @@ _Design: Components section (all interface definitions), ManusClient interface_
 
 ---
 
-### Task 1.3: Config loader - environment validation
+### Task 1.3: Config loader - environment validation [x]
 
 **Do**:
 1. Create `src/config.ts`:
