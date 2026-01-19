@@ -6,9 +6,9 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun run --watch src/index.ts",
-    "test": "vitest run --config vitest.config.ts && bun test src/__tests__/database.test.ts src/__tests__/integration/",
+    "test": "vitest run --config vitest.config.ts && bun test src/__tests__/database.test.ts src/__tests__/integration/ src/__tests__/e2e/",
     "test:vitest": "vitest run --config vitest.config.ts",
-    "test:bun": "bun test src/__tests__/database.test.ts src/__tests__/integration/",
+    "test:bun": "bun test src/__tests__/database.test.ts src/__tests__/integration/ src/__tests__/e2e/",
     "lint": "biome check src/",
     "format": "biome format --write src/",
     "seed-db": "bun run scripts/seed-db.ts"

@@ -1427,7 +1427,7 @@ cd ai-agents-responder && bun test src/__tests__/integration/
 
 ---
 
-### Task 3.10: E2E test - full pipeline with mocks
+### Task 3.10: E2E test - full pipeline with mocks [x]
 
 **Do**:
 1. Create `src/__tests__/e2e/full-pipeline.test.ts`:
