@@ -1009,7 +1009,7 @@ _Design: Error Recovery Flow_
 
 ---
 
-### Task 2.8: Error handling - comprehensive try/catch
+### Task 2.8: Error handling - comprehensive try/catch [x]
 
 **Do**:
 1. Update all components to use result pattern:

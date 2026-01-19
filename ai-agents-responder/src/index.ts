@@ -18,6 +18,12 @@ import { Generator } from './generator.js';
 import { Responder } from './responder.js';
 import { retry, RETRY_CONFIGS } from './utils/retry.js';
 import { executeWithCircuitBreaker } from './utils/circuit-breaker.js';
+import {
+  isAuthError,
+  isDatabaseError,
+  isCriticalError,
+  classifyError,
+} from './utils/errors.js';
 import type { Config, Database, CycleResult, ReplyLogEntry } from './types.js';
 
 /**
@@ -88,24 +94,47 @@ class Orchestrator {
         );
       } catch (error) {
         const duration = Date.now() - startTime;
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorClass = classifyError(error);
         logger.warn('orchestrator', 'search_failed', {
-          error: errorMessage,
+          error: errorClass.message,
+          isAuthError: errorClass.isAuth,
           durationMs: duration,
         });
+
+        // Exit on auth errors - can't operate without valid credentials
+        if (errorClass.isAuth) {
+          logger.error('orchestrator', 'auth_error_exit', error as Error, {
+            reason: 'Search authentication failed - credentials may be expired',
+            durationMs: duration,
+          });
+          process.exit(1);
+        }
+
         return {
           status: 'error',
           duration,
-          error: errorMessage,
+          error: errorClass.message,
         };
       }
 
       if (!searchResult.success) {
         const duration = Date.now() - startTime;
+        const searchErrorClass = classifyError(searchResult.error);
         logger.warn('orchestrator', 'search_failed', {
           error: searchResult.error,
+          isAuthError: searchErrorClass.isAuth,
           durationMs: duration,
         });
+
+        // Exit on auth errors
+        if (searchErrorClass.isAuth) {
+          logger.error('orchestrator', 'auth_error_exit', new Error(searchResult.error), {
+            reason: 'Search authentication failed - credentials may be expired',
+            durationMs: duration,
+          });
+          process.exit(1);
+        }
+
         return {
           status: 'error',
           duration,
@@ -251,9 +280,11 @@ class Orchestrator {
 
       if (!replyResult.success) {
         const duration = Date.now() - startTime;
+        const replyErrorClass = classifyError(replyResult.error);
         logger.error('orchestrator', 'reply_failed', new Error(replyResult.error || 'Unknown reply error'), {
           tweetId: eligible.id,
           author: eligible.authorUsername,
+          isAuthError: replyErrorClass.isAuth,
           durationMs: duration,
         });
 
@@ -273,6 +304,15 @@ class Orchestrator {
             pngSize: generateResult.pngSize,
           };
           await this.db.recordReply(logEntry);
+        }
+
+        // Exit on auth errors - can't post without valid credentials
+        if (replyErrorClass.isAuth) {
+          logger.error('orchestrator', 'auth_error_exit', new Error(replyResult.error || 'Auth error'), {
+            reason: 'Reply authentication failed - credentials may be expired',
+            durationMs: duration,
+          });
+          process.exit(1);
         }
 
         return {
@@ -321,21 +361,37 @@ class Orchestrator {
       };
     } catch (error) {
       const duration = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Classify the error using error detection utilities
+      const errorClass = classifyError(error);
 
       logger.error('orchestrator', 'cycle_error', error as Error, {
         durationMs: duration,
+        isAuthError: errorClass.isAuth,
+        isDatabaseError: errorClass.isDatabase,
+        isCritical: errorClass.isCritical,
       });
 
-      // Check for critical errors that warrant process exit
-      const isCriticalError =
-        errorMessage.toLowerCase().includes('auth') ||
-        errorMessage.toLowerCase().includes('unauthorized') ||
-        errorMessage.toLowerCase().includes('forbidden') ||
-        errorMessage.toLowerCase().includes('database') && errorMessage.toLowerCase().includes('corrupt') ||
-        errorMessage.toLowerCase().includes('sqlite_corrupt');
+      // Handle auth errors (401/403 from Bird) - critical, exit process
+      if (errorClass.isAuth) {
+        logger.error('orchestrator', 'auth_error_exit', error as Error, {
+          reason: 'Authentication error detected - credentials may be expired or invalid',
+          durationMs: duration,
+        });
+        process.exit(1);
+      }
 
-      if (isCriticalError) {
+      // Handle database errors (corruption, connection failures)
+      if (errorClass.isDatabase && errorClass.isCritical) {
+        logger.error('orchestrator', 'database_error_exit', error as Error, {
+          reason: 'Critical database error detected - data integrity at risk',
+          durationMs: duration,
+        });
+        process.exit(1);
+      }
+
+      // Check for other critical errors that warrant process exit
+      if (errorClass.isCritical) {
         logger.error('orchestrator', 'critical_error_exit', error as Error, {
           reason: 'Critical error detected, exiting process',
           durationMs: duration,
@@ -343,10 +399,11 @@ class Orchestrator {
         process.exit(1);
       }
 
+      // Non-critical errors: log and return error status (will retry on next cycle)
       return {
         status: 'error',
         duration,
-        error: errorMessage,
+        error: errorClass.message,
       };
     }
   }
