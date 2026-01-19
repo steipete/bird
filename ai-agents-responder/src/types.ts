@@ -132,6 +132,7 @@ export interface Database {
 
   // Circuit breaker
   getCircuitBreakerState(): Promise<CircuitBreakerState>;
+  updateCircuitBreakerState(update: CircuitBreakerUpdate): Promise<void>;
   recordManusFailure(): Promise<void>;
   recordManusSuccess(): Promise<void>;
 
@@ -158,6 +159,14 @@ export interface CircuitBreakerState {
   state: 'closed' | 'open' | 'half-open';
   failureCount: number;
   openedAt: Date | null;
+  lastFailureAt?: Date | null;
+}
+
+export interface CircuitBreakerUpdate {
+  state?: 'closed' | 'open' | 'half-open';
+  failureCount?: number;
+  openedAt?: Date | null;
+  lastFailureAt?: Date | null;
 }
 
 export interface AuthorCacheEntry {

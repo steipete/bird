@@ -908,7 +908,7 @@ _Design: Retry Configuration_
 
 ---
 
-### Task 2.5: Circuit breaker - Manus failure protection
+### Task 2.5: Circuit breaker - Manus failure protection [x]
 
 **Do**:
 1. Create `src/utils/circuit-breaker.ts`:

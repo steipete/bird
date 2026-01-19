@@ -8,6 +8,7 @@ import type {
   Database,
   RateLimitState,
   CircuitBreakerState,
+  CircuitBreakerUpdate,
   AuthorCacheEntry,
   ReplyLogEntry,
   SeedAuthor,
@@ -235,6 +236,44 @@ function createDatabaseInterface(db: BunDatabase): Database {
         failureCount: row.circuit_breaker_failures,
         openedAt: row.circuit_breaker_opened_at ? new Date(row.circuit_breaker_opened_at) : null,
       };
+    },
+
+    async updateCircuitBreakerState(update: CircuitBreakerUpdate): Promise<void> {
+      // Build dynamic UPDATE statement based on provided fields
+      const setClauses: string[] = [];
+      const values: (string | number | null)[] = [];
+
+      if (update.state !== undefined) {
+        setClauses.push('circuit_breaker_state = ?');
+        values.push(update.state);
+      }
+
+      if (update.failureCount !== undefined) {
+        setClauses.push('circuit_breaker_failures = ?');
+        values.push(update.failureCount);
+      }
+
+      if (update.openedAt !== undefined) {
+        setClauses.push('circuit_breaker_opened_at = ?');
+        values.push(update.openedAt ? update.openedAt.toISOString() : null);
+      }
+
+      // Note: lastFailureAt is logged but not stored in the current schema
+      // The schema uses circuit_breaker_opened_at for timing
+
+      if (setClauses.length === 0) {
+        // Nothing to update
+        return;
+      }
+
+      const sql = `UPDATE rate_limits SET ${setClauses.join(', ')} WHERE id = 1`;
+      db.run(sql, values);
+
+      logger.info('database', 'circuit_breaker_state_updated', {
+        state: update.state,
+        failureCount: update.failureCount,
+        openedAt: update.openedAt?.toISOString() ?? null,
+      });
     },
 
     async recordManusFailure(): Promise<void> {
