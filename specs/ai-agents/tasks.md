@@ -473,7 +473,7 @@ _Design: Generator component, buildManusPrompt template (design.md)_
 
 ---
 
-### Task 1.15: Reply templates - randomized text generation
+### Task 1.15: Reply templates - randomized text generation [x]
 
 **Do**:
 1. Create `src/reply-templates.ts`:
