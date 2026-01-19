@@ -56,7 +56,7 @@ export class Responder {
       });
 
       const credentials = await resolveCredentials({
-        source: this.config.bird.cookieSource,
+        cookieSource: this.config.bird.cookieSource,
       });
 
       this.client = new TwitterClient(credentials);
@@ -179,15 +179,15 @@ export class Responder {
         [uploadResult.mediaId]
       );
 
-      if (!replyResult.success || !replyResult.tweetId) {
-        logger.error('responder', 'reply_failed', new Error(replyResult.error || 'Unknown error'), {
+      if (!replyResult.success) {
+        logger.error('responder', 'reply_failed', new Error(replyResult.error), {
           tweetId: tweet.id,
           author: tweet.authorUsername,
         });
 
         return {
           success: false,
-          error: `Reply failed: ${replyResult.error || 'Unknown error'}`,
+          error: `Reply failed: ${replyResult.error}`,
         };
       }
 
