@@ -4,7 +4,9 @@
  * Runs the poll loop every 60s:
  * 1. Search for tweets via poller
  * 2. Filter candidates
- * 3. TODO: Generate and reply (next task)
+ * 3. Generate PNG summary via Manus
+ * 4. Reply to tweet with PNG attachment
+ * 5. Record reply and update rate limits
  */
 
 import { loadConfig } from './config.js';
@@ -12,7 +14,9 @@ import { logger } from './logger.js';
 import { initDatabase } from './database.js';
 import { Poller } from './poller.js';
 import { FilterPipeline } from './filter.js';
-import type { Config, Database, CycleResult } from './types.js';
+import { Generator } from './generator.js';
+import { Responder } from './responder.js';
+import type { Config, Database, CycleResult, ReplyLogEntry } from './types.js';
 
 /**
  * Main orchestrator class
@@ -22,6 +26,8 @@ class Orchestrator {
   private db: Database | null = null;
   private poller: Poller;
   private filter: FilterPipeline;
+  private generator: Generator;
+  private responder: Responder;
   private running: boolean = false;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private currentCyclePromise: Promise<CycleResult> | null = null;
@@ -31,6 +37,8 @@ class Orchestrator {
     this.config = loadConfig();
     this.poller = new Poller();
     this.filter = new FilterPipeline();
+    this.generator = new Generator();
+    this.responder = new Responder(this.config);
   }
 
   /**
@@ -47,6 +55,9 @@ class Orchestrator {
 
     // Initialize filter pipeline
     await this.filter.initialize();
+
+    // Initialize responder (sets up Bird client if not dry-run)
+    await this.responder.initialize();
 
     logger.info('orchestrator', 'initialized', {});
   }
@@ -111,18 +122,121 @@ class Orchestrator {
         textPreview: eligible.text.substring(0, 100) + '...',
       });
 
-      // TODO: Generate and reply (Task 1.20)
-      // For now, just log that we found an eligible tweet
-      logger.info('orchestrator', 'todo_generate_and_reply', {
+      // Step 3: Generate PNG summary via Manus
+      logger.info('orchestrator', 'generating_summary', {
         tweetId: eligible.id,
-        note: 'Generation and reply will be implemented in Task 1.20',
       });
+
+      const generateResult = await this.generator.generate(eligible);
+
+      if (!generateResult.success || !generateResult.png) {
+        const duration = Date.now() - startTime;
+        logger.error('orchestrator', 'generation_failed', new Error(generateResult.error || 'Unknown generation error'), {
+          tweetId: eligible.id,
+          author: eligible.authorUsername,
+          manusTaskId: generateResult.manusTaskId,
+          durationMs: duration,
+        });
+
+        // Record failed attempt
+        if (this.db) {
+          const logEntry: ReplyLogEntry = {
+            tweetId: eligible.id,
+            authorId: eligible.authorId,
+            authorUsername: eligible.authorUsername,
+            tweetText: eligible.text,
+            tweetCreatedAt: eligible.createdAt,
+            replyTweetId: null,
+            success: false,
+            errorMessage: `Generation failed: ${generateResult.error}`,
+            manusTaskId: generateResult.manusTaskId,
+            manusDuration: generateResult.manusDuration,
+          };
+          await this.db.recordReply(logEntry);
+        }
+
+        return {
+          status: 'error',
+          duration,
+          error: `Generation failed: ${generateResult.error}`,
+        };
+      }
+
+      logger.info('orchestrator', 'generation_complete', {
+        tweetId: eligible.id,
+        pngSize: generateResult.pngSize,
+        manusDuration: generateResult.manusDuration,
+      });
+
+      // Step 4: Reply to tweet with PNG
+      logger.info('orchestrator', 'posting_reply', {
+        tweetId: eligible.id,
+        author: eligible.authorUsername,
+      });
+
+      const replyResult = await this.responder.reply(eligible, generateResult.png);
+
+      if (!replyResult.success) {
+        const duration = Date.now() - startTime;
+        logger.error('orchestrator', 'reply_failed', new Error(replyResult.error || 'Unknown reply error'), {
+          tweetId: eligible.id,
+          author: eligible.authorUsername,
+          durationMs: duration,
+        });
+
+        // Record failed attempt
+        if (this.db) {
+          const logEntry: ReplyLogEntry = {
+            tweetId: eligible.id,
+            authorId: eligible.authorId,
+            authorUsername: eligible.authorUsername,
+            tweetText: eligible.text,
+            tweetCreatedAt: eligible.createdAt,
+            replyTweetId: null,
+            success: false,
+            errorMessage: `Reply failed: ${replyResult.error}`,
+            manusTaskId: generateResult.manusTaskId,
+            manusDuration: generateResult.manusDuration,
+            pngSize: generateResult.pngSize,
+          };
+          await this.db.recordReply(logEntry);
+        }
+
+        return {
+          status: 'error',
+          duration,
+          error: `Reply failed: ${replyResult.error}`,
+        };
+      }
+
+      // Step 5: Record successful reply and update rate limits
+      if (this.db) {
+        const logEntry: ReplyLogEntry = {
+          tweetId: eligible.id,
+          authorId: eligible.authorId,
+          authorUsername: eligible.authorUsername,
+          tweetText: eligible.text,
+          tweetCreatedAt: eligible.createdAt,
+          replyTweetId: replyResult.replyTweetId || null,
+          success: true,
+          manusTaskId: generateResult.manusTaskId,
+          manusDuration: generateResult.manusDuration,
+          pngSize: generateResult.pngSize,
+          templateIndex: replyResult.templateUsed,
+        };
+        await this.db.recordReply(logEntry);
+        await this.db.incrementDailyCount();
+        await this.db.updateLastReplyTime(new Date());
+      }
 
       const duration = Date.now() - startTime;
       logger.info('orchestrator', 'cycle_complete', {
         status: 'processed',
         tweetId: eligible.id,
         author: eligible.authorUsername,
+        replyTweetId: replyResult.replyTweetId,
+        templateUsed: replyResult.templateUsed,
+        pngSize: generateResult.pngSize,
         durationMs: duration,
       });
 
@@ -139,6 +253,22 @@ class Orchestrator {
       logger.error('orchestrator', 'cycle_error', error as Error, {
         durationMs: duration,
       });
+
+      // Check for critical errors that warrant process exit
+      const isCriticalError =
+        errorMessage.toLowerCase().includes('auth') ||
+        errorMessage.toLowerCase().includes('unauthorized') ||
+        errorMessage.toLowerCase().includes('forbidden') ||
+        errorMessage.toLowerCase().includes('database') && errorMessage.toLowerCase().includes('corrupt') ||
+        errorMessage.toLowerCase().includes('sqlite_corrupt');
+
+      if (isCriticalError) {
+        logger.error('orchestrator', 'critical_error_exit', error as Error, {
+          reason: 'Critical error detected, exiting process',
+          durationMs: duration,
+        });
+        process.exit(1);
+      }
 
       return {
         status: 'error',
