@@ -12,11 +12,12 @@
     "seed-db": "bun run scripts/seed-db.ts"
   },
   "dependencies": {
-    "@steipete/bird": "workspace:*",
+    "@steipete/bird": "file:..",
     "dotenv": "^16.4.5",
     "pdf-to-png-converter": "^3.3.0"
   },
   "devDependencies": {
+    "@types/bun": "^1.2.15",
     "@types/node": "^22.10.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
