@@ -47,7 +47,9 @@ const DEFAULTS = {
  * Parse boolean from environment variable
  */
 function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {
-  if (value === undefined || value === '') return defaultValue;
+  if (value === undefined || value === '') {
+    return defaultValue;
+  }
   return value.toLowerCase() === 'true';
 }
 
@@ -55,9 +57,11 @@ function parseBoolean(value: string | undefined, defaultValue: boolean): boolean
  * Parse integer from environment variable with optional default
  */
 function parseIntOrDefault(value: string | undefined, defaultValue: number): number {
-  if (value === undefined || value === '') return defaultValue;
+  if (value === undefined || value === '') {
+    return defaultValue;
+  }
   const parsed = parseInt(value, 10);
-  return isNaN(parsed) ? defaultValue : parsed;
+  return Number.isNaN(parsed) ? defaultValue : parsed;
 }
 
 /**
@@ -99,7 +103,10 @@ export function loadConfig(): Config {
       maxDailyReplies: parseIntOrDefault(process.env.MAX_DAILY_REPLIES, DEFAULTS.rateLimits.maxDailyReplies),
       minGapMinutes: parseIntOrDefault(process.env.MIN_GAP_MINUTES, DEFAULTS.rateLimits.minGapMinutes),
       maxPerAuthorPerDay: parseIntOrDefault(process.env.MAX_PER_AUTHOR_PER_DAY, DEFAULTS.rateLimits.maxPerAuthorPerDay),
-      errorCooldownMinutes: parseIntOrDefault(process.env.ERROR_COOLDOWN_MINUTES, DEFAULTS.rateLimits.errorCooldownMinutes),
+      errorCooldownMinutes: parseIntOrDefault(
+        process.env.ERROR_COOLDOWN_MINUTES,
+        DEFAULTS.rateLimits.errorCooldownMinutes,
+      ),
     },
     filters: {
       minFollowerCount: parseIntOrDefault(process.env.MIN_FOLLOWER_COUNT, DEFAULTS.filters.minFollowerCount),
@@ -133,13 +140,15 @@ export function loadConfig(): Config {
   }
 
   // Log masked config on startup
-  console.log(JSON.stringify({
-    timestamp: new Date().toISOString(),
-    level: 'info',
-    component: 'config',
-    event: 'config_loaded',
-    metadata: maskSecrets(config),
-  }));
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      component: 'config',
+      event: 'config_loaded',
+      metadata: maskSecrets(config),
+    }),
+  );
 
   return config;
 }
@@ -174,7 +183,7 @@ export function validateConfig(config: Config): ConfigValidationResult {
   const requiredMinutes = config.rateLimits.maxDailyReplies * config.rateLimits.minGapMinutes;
   if (requiredMinutes > dailyMinutes) {
     errors.push(
-      `Impossible rate limits: ${config.rateLimits.maxDailyReplies} replies * ${config.rateLimits.minGapMinutes} min gap = ${requiredMinutes} minutes > 1440 minutes (24 hours)`
+      `Impossible rate limits: ${config.rateLimits.maxDailyReplies} replies * ${config.rateLimits.minGapMinutes} min gap = ${requiredMinutes} minutes > 1440 minutes (24 hours)`,
     );
   }
 

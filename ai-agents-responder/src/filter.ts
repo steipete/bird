@@ -4,22 +4,11 @@
  * Phase 2: Added follower count check with caching, rate limit enforcement
  */
 
-import {
-  TwitterClient,
-  resolveCredentials,
-} from '@steipete/bird';
-import type {
-  TweetCandidate,
-  FilterResult,
-  FilterStats,
-  Database,
-  AuthorCacheEntry,
-  Config,
-  RateLimitState,
-} from './types.js';
-import { initDatabase } from './database.js';
+import { resolveCredentials, TwitterClient } from '@steipete/bird';
 import { loadConfig } from './config.js';
+import { initDatabase } from './database.js';
 import { logger } from './logger.js';
+import type { AuthorCacheEntry, Config, Database, FilterResult, FilterStats, TweetCandidate } from './types.js';
 
 /**
  * Filter configuration constants
@@ -59,7 +48,7 @@ function createFilterStats(total: number): FilterStats {
 function recordRejection(
   stats: FilterStats,
   category: 'content' | 'duplicate' | 'followers' | 'rateLimit',
-  reason: string
+  reason: string,
 ): void {
   switch (category) {
     case 'content':
@@ -85,10 +74,7 @@ function recordRejection(
  * - Not a retweet
  * - Age < 30 minutes
  */
-function passesContentFilters(
-  tweet: TweetCandidate,
-  stats: FilterStats
-): boolean {
+function passesContentFilters(tweet: TweetCandidate, stats: FilterStats): boolean {
   // Check tweet length
   if (tweet.text.length < FILTER_CONFIG.minTweetLength) {
     recordRejection(stats, 'content', 'too_short');
@@ -122,11 +108,7 @@ function passesContentFilters(
  * - Haven't replied to this tweet before
  * - Haven't exceeded daily replies to this author
  */
-async function passesDeduplicationFilters(
-  tweet: TweetCandidate,
-  db: Database,
-  stats: FilterStats
-): Promise<boolean> {
+async function passesDeduplicationFilters(tweet: TweetCandidate, db: Database, stats: FilterStats): Promise<boolean> {
   // Check if already replied to this tweet
   const hasReplied = await db.hasRepliedToTweet(tweet.id);
   if (hasReplied) {
@@ -157,7 +139,7 @@ function sleep(ms: number): Promise<void> {
  */
 async function fetchUserProfile(
   client: TwitterClient,
-  username: string
+  username: string,
 ): Promise<{
   success: boolean;
   followerCount?: number;
@@ -233,7 +215,7 @@ async function fetchUserProfile(
  */
 async function fetchUserProfileWithRetry(
   client: TwitterClient,
-  username: string
+  username: string,
 ): Promise<{
   success: boolean;
   followerCount?: number;
@@ -248,7 +230,7 @@ async function fetchUserProfileWithRetry(
   for (let attempt = 0; attempt < RETRY_CONFIG.maxAttempts; attempt++) {
     if (attempt > 0) {
       // Exponential backoff: 1s, 2s, 4s
-      const delayMs = RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt - 1);
+      const delayMs = RETRY_CONFIG.baseDelayMs * 2 ** (attempt - 1);
       logger.info('filter', 'retry_delay', {
         attempt: attempt + 1,
         delayMs,
@@ -364,18 +346,15 @@ export class FilterPipeline {
    * - If cache miss, fetch from API with retry
    * - Skip if followerCount < MIN_FOLLOWER_COUNT
    */
-  private async passesFollowerCheck(
-    tweet: TweetCandidate,
-    stats: FilterStats
-  ): Promise<boolean> {
+  private async passesFollowerCheck(tweet: TweetCandidate, stats: FilterStats): Promise<boolean> {
     if (!this.db || !this.config) {
       await this.initialize();
     }
 
-    const minFollowerCount = this.config!.filters.minFollowerCount;
+    const minFollowerCount = this.config?.filters.minFollowerCount ?? 0;
 
     // Check cache first (includes 24h TTL check in DB query)
-    const cachedAuthor = await this.db!.getAuthorCache(tweet.authorId);
+    const cachedAuthor = await this.db?.getAuthorCache(tweet.authorId);
 
     if (cachedAuthor) {
       // Cache hit
@@ -411,7 +390,11 @@ export class FilterPipeline {
     }
 
     // Fetch user profile with retry
-    const profile = await fetchUserProfileWithRetry(this.client!, tweet.authorUsername);
+    if (!this.client) {
+      recordRejection(stats, 'followers', 'no_client');
+      return false;
+    }
+    const profile = await fetchUserProfileWithRetry(this.client, tweet.authorUsername);
 
     if (!profile.success) {
       logger.error('filter', 'user_profile_fetch_failed', new Error(profile.error ?? 'Unknown'), {
@@ -428,13 +411,13 @@ export class FilterPipeline {
       authorId: profile.userId ?? tweet.authorId,
       username: tweet.authorUsername,
       name: profile.name ?? tweet.authorUsername,
-      followerCount: profile.followerCount!,
+      followerCount: profile.followerCount ?? 0,
       followingCount: profile.followingCount ?? 0,
       isVerified: profile.isVerified ?? false,
       updatedAt: new Date(),
     };
 
-    await this.db!.upsertAuthorCache(authorEntry);
+    await this.db?.upsertAuthorCache(authorEntry);
 
     logger.info('filter', 'author_cache_updated', {
       authorId: authorEntry.authorId,
@@ -465,21 +448,21 @@ export class FilterPipeline {
    * - Check gap since last reply >= minGapMinutes
    * - Check replies to this author today < maxPerAuthorPerDay
    */
-  private async passesRateLimitCheck(
-    tweet: TweetCandidate,
-    stats: FilterStats
-  ): Promise<boolean> {
+  private async passesRateLimitCheck(tweet: TweetCandidate, stats: FilterStats): Promise<boolean> {
     if (!this.db || !this.config) {
       await this.initialize();
     }
 
-    const rateLimits = this.config!.rateLimits;
+    const rateLimits = this.config?.rateLimits;
+    if (!rateLimits || !this.db) {
+      return false;
+    }
 
     // Reset daily count if needed (past midnight UTC)
-    await this.db!.resetDailyCountIfNeeded();
+    await this.db.resetDailyCountIfNeeded();
 
     // Get current rate limit state
-    const state = await this.db!.getRateLimitState();
+    const state = await this.db.getRateLimitState();
 
     // Check daily count limit
     if (state.dailyCount >= rateLimits.maxDailyReplies) {
@@ -508,7 +491,7 @@ export class FilterPipeline {
     }
 
     // Check per-author daily limit
-    const authorReplies = await this.db!.getRepliesForAuthorToday(tweet.authorId);
+    const authorReplies = await this.db.getRepliesForAuthorToday(tweet.authorId);
     if (authorReplies >= rateLimits.maxPerAuthorPerDay) {
       recordRejection(stats, 'rateLimit', 'author_daily_limit');
       logger.info('filter', 'rate_limit_exceeded', {
@@ -532,17 +515,21 @@ export class FilterPipeline {
       await this.initialize();
     }
 
-    // Reset daily count if needed before logging
-    await this.db!.resetDailyCountIfNeeded();
+    if (!this.db || !this.config?.rateLimits) {
+      return;
+    }
 
-    const state = await this.db!.getRateLimitState();
-    const rateLimits = this.config!.rateLimits;
+    // Reset daily count if needed before logging
+    await this.db.resetDailyCountIfNeeded();
+
+    const state = await this.db.getRateLimitState();
+    const rateLimits = this.config.rateLimits;
 
     let gapMinutes: number | null = null;
     let minutesUntilNextReply: number | null = null;
 
     if (state.lastReplyAt) {
-      gapMinutes = Math.round((Date.now() - state.lastReplyAt.getTime()) / (1000 * 60) * 10) / 10;
+      gapMinutes = Math.round(((Date.now() - state.lastReplyAt.getTime()) / (1000 * 60)) * 10) / 10;
       const remaining = rateLimits.minGapMinutes - gapMinutes;
       minutesUntilNextReply = remaining > 0 ? Math.round(remaining * 10) / 10 : 0;
     }
@@ -586,7 +573,7 @@ export class FilterPipeline {
       }
 
       // Stage 2: Deduplication filters
-      if (!(await passesDeduplicationFilters(tweet, this.db!, stats))) {
+      if (!this.db || !(await passesDeduplicationFilters(tweet, this.db, stats))) {
         continue;
       }
 
@@ -614,20 +601,12 @@ export class FilterPipeline {
   /**
    * Log filter statistics after each cycle
    */
-  private logFilterStats(
-    stats: FilterStats,
-    eligible: TweetCandidate | null
-  ): void {
+  private logFilterStats(stats: FilterStats, eligible: TweetCandidate | null): void {
     const totalRejected =
-      stats.rejectedContent +
-      stats.rejectedDuplicate +
-      stats.rejectedFollowers +
-      stats.rejectedRateLimit;
+      stats.rejectedContent + stats.rejectedDuplicate + stats.rejectedFollowers + stats.rejectedRateLimit;
 
     const totalCacheChecks = this.cacheHits + this.cacheMisses;
-    const cacheHitRate = totalCacheChecks > 0
-      ? Math.round((this.cacheHits / totalCacheChecks) * 100)
-      : 0;
+    const cacheHitRate = totalCacheChecks > 0 ? Math.round((this.cacheHits / totalCacheChecks) * 100) : 0;
 
     logger.info('filter', 'cycle_complete', {
       total: stats.total,

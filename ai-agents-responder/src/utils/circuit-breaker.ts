@@ -9,7 +9,7 @@
  */
 
 import { logger } from '../logger.js';
-import type { Database, CircuitBreakerState } from '../types.js';
+import type { Database } from '../types.js';
 
 /**
  * Circuit breaker configuration
@@ -53,7 +53,7 @@ export interface CircuitBreakerUpdate {
 export async function executeWithCircuitBreaker<T>(
   operation: () => Promise<T>,
   db: Database,
-  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_BREAKER_CONFIG
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_BREAKER_CONFIG,
 ): Promise<T | null> {
   // Load current state from DB
   const currentState = await db.getCircuitBreakerState();

@@ -71,9 +71,7 @@ export class ReplyTemplateManager {
 
     // Validate total length
     if (text.length > MAX_TWEET_LENGTH) {
-      throw new Error(
-        `Reply text exceeds ${MAX_TWEET_LENGTH} chars: ${text.length} characters`
-      );
+      throw new Error(`Reply text exceeds ${MAX_TWEET_LENGTH} chars: ${text.length} characters`);
     }
 
     return text;

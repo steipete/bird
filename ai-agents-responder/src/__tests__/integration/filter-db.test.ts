@@ -8,18 +8,18 @@
  * - Verify deduplication, author cache, and rate limits work end-to-end
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { Database as BunDatabase } from 'bun:sqlite';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import type {
-  TweetCandidate,
-  Database,
-  Config,
-  RateLimitState,
   AuthorCacheEntry,
   CircuitBreakerState,
   CircuitBreakerUpdate,
+  Config,
+  Database,
+  RateLimitState,
   ReplyLogEntry,
   SeedAuthor,
+  TweetCandidate,
 } from '../../types.js';
 
 // =============================================================================
@@ -106,20 +106,24 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async getRepliesForAuthorToday(authorId: string): Promise<number> {
-      const result = db.query(`
+      const result = db
+        .query(`
         SELECT COUNT(*) as count FROM replied_tweets
         WHERE author_id = ?
           AND replied_at > datetime('now', '-24 hours')
-      `).get(authorId) as { count: number } | null;
+      `)
+        .get(authorId) as { count: number } | null;
       return result?.count ?? 0;
     },
 
     async getRateLimitState(): Promise<RateLimitState> {
       await this.resetDailyCountIfNeeded();
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT daily_count, last_reply_at, daily_reset_at
         FROM rate_limits WHERE id = 1
-      `).get() as {
+      `)
+        .get() as {
         daily_count: number;
         last_reply_at: string | null;
         daily_reset_at: string;
@@ -154,10 +158,12 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async getCircuitBreakerState(): Promise<CircuitBreakerState> {
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT circuit_breaker_state, circuit_breaker_failures, circuit_breaker_opened_at
         FROM rate_limits WHERE id = 1
-      `).get() as {
+      `)
+        .get() as {
         circuit_breaker_state: string;
         circuit_breaker_failures: number;
         circuit_breaker_opened_at: string | null;
@@ -210,12 +216,14 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async getAuthorCache(authorId: string): Promise<AuthorCacheEntry | null> {
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT author_id, username, name, follower_count, following_count, is_verified, updated_at
         FROM author_cache
         WHERE author_id = ?
           AND updated_at > datetime('now', '-24 hours')
-      `).get(authorId) as {
+      `)
+        .get(authorId) as {
         author_id: string;
         username: string;
         name: string | null;
@@ -225,7 +233,9 @@ function createDatabaseInterface(db: BunDatabase): Database {
         updated_at: string;
       } | null;
 
-      if (!row) return null;
+      if (!row) {
+        return null;
+      }
 
       return {
         authorId: row.author_id,
@@ -239,7 +249,8 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async upsertAuthorCache(author: AuthorCacheEntry): Promise<void> {
-      db.run(`
+      db.run(
+        `
         INSERT INTO author_cache (author_id, username, name, follower_count, following_count, is_verified, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(author_id) DO UPDATE SET
@@ -249,14 +260,16 @@ function createDatabaseInterface(db: BunDatabase): Database {
           following_count = excluded.following_count,
           is_verified = excluded.is_verified,
           updated_at = datetime('now')
-      `, [
-        author.authorId,
-        author.username,
-        author.name,
-        author.followerCount,
-        author.followingCount,
-        author.isVerified ? 1 : 0,
-      ]);
+      `,
+        [
+          author.authorId,
+          author.username,
+          author.name,
+          author.followerCount,
+          author.followingCount,
+          author.isVerified ? 1 : 0,
+        ],
+      );
     },
 
     async seedAuthorsFromJson(authors: SeedAuthor[]): Promise<void> {
@@ -279,33 +292,36 @@ function createDatabaseInterface(db: BunDatabase): Database {
           author.name,
           author.followerCount,
           author.followingCount ?? 0,
-          author.isVerified ? 1 : 0
+          author.isVerified ? 1 : 0,
         );
       }
     },
 
     async recordReply(log: ReplyLogEntry): Promise<void> {
-      db.run(`
+      db.run(
+        `
         INSERT INTO replied_tweets (
           tweet_id, author_id, author_username, tweet_text, tweet_created_at,
           reply_tweet_id, success, error_message, manus_task_id,
           manus_duration_ms, png_size_bytes, reply_template_index
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        log.tweetId,
-        log.authorId,
-        log.authorUsername,
-        log.tweetText,
-        log.tweetCreatedAt.toISOString(),
-        log.replyTweetId,
-        log.success ? 1 : 0,
-        log.errorMessage ?? null,
-        log.manusTaskId ?? null,
-        log.manusDuration ?? null,
-        log.pngSize ?? null,
-        log.templateIndex ?? null,
-      ]);
+      `,
+        [
+          log.tweetId,
+          log.authorId,
+          log.authorUsername,
+          log.tweetText,
+          log.tweetCreatedAt.toISOString(),
+          log.replyTweetId,
+          log.success ? 1 : 0,
+          log.errorMessage ?? null,
+          log.manusTaskId ?? null,
+          log.manusDuration ?? null,
+          log.pngSize ?? null,
+          log.templateIndex ?? null,
+        ],
+      );
     },
 
     async initialize(): Promise<void> {},
@@ -487,9 +503,9 @@ describe('Filter + Database Integration Tests', () => {
 
       const cached = await db.getAuthorCache(author.authorId);
       expect(cached).not.toBeNull();
-      expect(cached!.authorId).toBe(author.authorId);
-      expect(cached!.followerCount).toBe(75000);
-      expect(cached!.isVerified).toBe(true);
+      expect(cached?.authorId).toBe(author.authorId);
+      expect(cached?.followerCount).toBe(75000);
+      expect(cached?.isVerified).toBe(true);
     });
 
     it('should update existing author cache', async () => {
@@ -519,8 +535,8 @@ describe('Filter + Database Integration Tests', () => {
       });
 
       const cached = await db.getAuthorCache(authorId);
-      expect(cached!.followerCount).toBe(100000);
-      expect(cached!.isVerified).toBe(true);
+      expect(cached?.followerCount).toBe(100000);
+      expect(cached?.isVerified).toBe(true);
     });
 
     it('should seed authors from JSON array', async () => {
@@ -540,14 +556,14 @@ describe('Filter + Database Integration Tests', () => {
       const cached3 = await db.getAuthorCache('seed-3');
 
       expect(cached1).not.toBeNull();
-      expect(cached1!.username).toBe('sama');
-      expect(cached1!.followerCount).toBe(3000000);
+      expect(cached1?.username).toBe('sama');
+      expect(cached1?.followerCount).toBe(3000000);
 
       expect(cached2).not.toBeNull();
-      expect(cached2!.followerCount).toBe(800000);
+      expect(cached2?.followerCount).toBe(800000);
 
       expect(cached3).not.toBeNull();
-      expect(cached3!.followerCount).toBe(500000);
+      expect(cached3?.followerCount).toBe(500000);
     });
 
     it('should apply follower count threshold check from cache', async () => {
@@ -580,8 +596,8 @@ describe('Filter + Database Integration Tests', () => {
       const bigAuthor = await db.getAuthorCache('big-author');
       const smallAuthor = await db.getAuthorCache('small-author');
 
-      expect(bigAuthor!.followerCount >= minFollowers).toBe(true);
-      expect(smallAuthor!.followerCount >= minFollowers).toBe(false);
+      expect((bigAuthor?.followerCount ?? 0) >= minFollowers).toBe(true);
+      expect((smallAuthor?.followerCount ?? 0) >= minFollowers).toBe(false);
     });
   });
 
@@ -595,10 +611,13 @@ describe('Filter + Database Integration Tests', () => {
       const authorId = 'stale-author';
 
       // Insert with manual SQL to set old timestamp
-      testDb.db.run(`
+      testDb.db.run(
+        `
         INSERT INTO author_cache (author_id, username, name, follower_count, following_count, is_verified, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now', '-25 hours'))
-      `, [authorId, 'staleuser', 'Stale User', 50000, 100, 0]);
+      `,
+        [authorId, 'staleuser', 'Stale User', 50000, 100, 0],
+      );
 
       // Should return null due to TTL
       const cached = await db.getAuthorCache(authorId);
@@ -610,15 +629,18 @@ describe('Filter + Database Integration Tests', () => {
       const authorId = 'fresh-author';
 
       // Insert with manual SQL to set recent timestamp
-      testDb.db.run(`
+      testDb.db.run(
+        `
         INSERT INTO author_cache (author_id, username, name, follower_count, following_count, is_verified, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now', '-12 hours'))
-      `, [authorId, 'freshuser', 'Fresh User', 75000, 200, 1]);
+      `,
+        [authorId, 'freshuser', 'Fresh User', 75000, 200, 1],
+      );
 
       // Should return the entry (within 24h)
       const cached = await db.getAuthorCache(authorId);
       expect(cached).not.toBeNull();
-      expect(cached!.followerCount).toBe(75000);
+      expect(cached?.followerCount).toBe(75000);
     });
 
     it('should refresh cache on upsert', async () => {
@@ -626,10 +648,13 @@ describe('Filter + Database Integration Tests', () => {
       const authorId = 'refresh-author';
 
       // Insert stale entry
-      testDb.db.run(`
+      testDb.db.run(
+        `
         INSERT INTO author_cache (author_id, username, name, follower_count, following_count, is_verified, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now', '-25 hours'))
-      `, [authorId, 'refreshuser', 'Refresh User', 50000, 100, 0]);
+      `,
+        [authorId, 'refreshuser', 'Refresh User', 50000, 100, 0],
+      );
 
       // Verify it's stale
       expect(await db.getAuthorCache(authorId)).toBeNull();
@@ -648,7 +673,7 @@ describe('Filter + Database Integration Tests', () => {
       // Now should be accessible
       const cached = await db.getAuthorCache(authorId);
       expect(cached).not.toBeNull();
-      expect(cached!.followerCount).toBe(60000);
+      expect(cached?.followerCount).toBe(60000);
     });
   });
 
@@ -682,7 +707,8 @@ describe('Filter + Database Integration Tests', () => {
       await db.updateLastReplyTime(now);
 
       const state = await db.getRateLimitState();
-      const gapMinutes = (Date.now() - state.lastReplyAt!.getTime()) / (1000 * 60);
+      const lastReplyTime = state.lastReplyAt?.getTime() ?? 0;
+      const gapMinutes = (Date.now() - lastReplyTime) / (1000 * 60);
 
       // Gap should be ~0 (just replied), which is < minGap
       expect(gapMinutes < minGap).toBe(true);
@@ -698,7 +724,8 @@ describe('Filter + Database Integration Tests', () => {
       await db.updateLastReplyTime(fifteenMinutesAgo);
 
       const state = await db.getRateLimitState();
-      const gapMinutes = (Date.now() - state.lastReplyAt!.getTime()) / (1000 * 60);
+      const lastReplyTime = state.lastReplyAt?.getTime() ?? 0;
+      const gapMinutes = (Date.now() - lastReplyTime) / (1000 * 60);
 
       // Gap should be ~15 minutes, which is > minGap (10)
       expect(gapMinutes >= minGap).toBe(true);
@@ -830,7 +857,7 @@ describe('Filter + Database Integration Tests', () => {
       expect(hasReplied).toBe(false);
       expect(authorReplies).toBeLessThan(config.rateLimits.maxPerAuthorPerDay);
       expect(cached).not.toBeNull();
-      expect(cached!.followerCount).toBeGreaterThanOrEqual(config.filters.minFollowerCount);
+      expect(cached?.followerCount).toBeGreaterThanOrEqual(config.filters.minFollowerCount);
       expect(rateLimitState.dailyCount).toBeLessThan(config.rateLimits.maxDailyReplies);
     });
 
@@ -871,7 +898,7 @@ describe('Filter + Database Integration Tests', () => {
       });
 
       const cached = await db.getAuthorCache('small-follower-author');
-      expect(cached!.followerCount).toBeLessThan(config.filters.minFollowerCount);
+      expect(cached?.followerCount).toBeLessThan(config.filters.minFollowerCount);
     });
 
     it('should reject candidate when rate limited', async () => {
@@ -941,15 +968,17 @@ describe('Filter + Database Integration Tests', () => {
       });
 
       // Attempting to insert duplicate should throw
-      await expect(db.recordReply({
-        tweetId: 'unique-tweet', // Same tweet ID
-        authorId: 'author-2',
-        authorUsername: 'author2',
-        tweetText: 'Second reply attempt...',
-        tweetCreatedAt: new Date(),
-        replyTweetId: 'reply-2',
-        success: true,
-      })).rejects.toThrow();
+      await expect(
+        db.recordReply({
+          tweetId: 'unique-tweet', // Same tweet ID
+          authorId: 'author-2',
+          authorUsername: 'author2',
+          tweetText: 'Second reply attempt...',
+          tweetCreatedAt: new Date(),
+          replyTweetId: 'reply-2',
+          success: true,
+        }),
+      ).rejects.toThrow();
     });
 
     it('should maintain singleton constraint on rate_limits', async () => {

@@ -1521,7 +1521,7 @@ cd ai-agents-responder && bun test
 
 ## Phase 4: Quality Gates
 
-### Task 4.1: Linting setup - Biome and Oxlint
+### Task 4.1: Linting setup - Biome and Oxlint [x]
 
 **Do**:
 1. Copy `biome.json` from bird root to ai-agents-responder/

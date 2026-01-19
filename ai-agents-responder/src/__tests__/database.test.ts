@@ -3,16 +3,16 @@
  * Tests all core queries using in-memory SQLite
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Database as BunDatabase } from 'bun:sqlite';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type {
+  AuthorCacheEntry,
+  CircuitBreakerState,
+  CircuitBreakerUpdate,
   Database,
   RateLimitState,
-  CircuitBreakerState,
-  AuthorCacheEntry,
   ReplyLogEntry,
   SeedAuthor,
-  CircuitBreakerUpdate,
 } from '../types.js';
 
 // =============================================================================
@@ -102,21 +102,25 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async getRepliesForAuthorToday(authorId: string): Promise<number> {
-      const result = db.query(`
+      const result = db
+        .query(`
         SELECT COUNT(*) as count FROM replied_tweets
         WHERE author_id = ?
           AND replied_at > datetime('now', '-24 hours')
-      `).get(authorId) as { count: number } | null;
+      `)
+        .get(authorId) as { count: number } | null;
       return result?.count ?? 0;
     },
 
     async getRateLimitState(): Promise<RateLimitState> {
       await this.resetDailyCountIfNeeded();
 
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT daily_count, last_reply_at, daily_reset_at
         FROM rate_limits WHERE id = 1
-      `).get() as {
+      `)
+        .get() as {
         daily_count: number;
         last_reply_at: string | null;
         daily_reset_at: string;
@@ -151,17 +155,16 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async updateLastReplyTime(timestamp: Date): Promise<void> {
-      db.run(
-        'UPDATE rate_limits SET last_reply_at = ? WHERE id = 1',
-        [timestamp.toISOString()]
-      );
+      db.run('UPDATE rate_limits SET last_reply_at = ? WHERE id = 1', [timestamp.toISOString()]);
     },
 
     async getCircuitBreakerState(): Promise<CircuitBreakerState> {
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT circuit_breaker_state, circuit_breaker_failures, circuit_breaker_opened_at
         FROM rate_limits WHERE id = 1
-      `).get() as {
+      `)
+        .get() as {
         circuit_breaker_state: string;
         circuit_breaker_failures: number;
         circuit_breaker_opened_at: string | null;
@@ -228,12 +231,14 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async getAuthorCache(authorId: string): Promise<AuthorCacheEntry | null> {
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT author_id, username, name, follower_count, following_count, is_verified, updated_at
         FROM author_cache
         WHERE author_id = ?
           AND updated_at > datetime('now', '-24 hours')
-      `).get(authorId) as {
+      `)
+        .get(authorId) as {
         author_id: string;
         username: string;
         name: string | null;
@@ -259,7 +264,8 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async upsertAuthorCache(author: AuthorCacheEntry): Promise<void> {
-      db.run(`
+      db.run(
+        `
         INSERT INTO author_cache (author_id, username, name, follower_count, following_count, is_verified, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(author_id) DO UPDATE SET
@@ -269,14 +275,16 @@ function createDatabaseInterface(db: BunDatabase): Database {
           following_count = excluded.following_count,
           is_verified = excluded.is_verified,
           updated_at = datetime('now')
-      `, [
-        author.authorId,
-        author.username,
-        author.name,
-        author.followerCount,
-        author.followingCount,
-        author.isVerified ? 1 : 0,
-      ]);
+      `,
+        [
+          author.authorId,
+          author.username,
+          author.name,
+          author.followerCount,
+          author.followingCount,
+          author.isVerified ? 1 : 0,
+        ],
+      );
     },
 
     async seedAuthorsFromJson(authors: SeedAuthor[]): Promise<void> {
@@ -299,33 +307,36 @@ function createDatabaseInterface(db: BunDatabase): Database {
           author.name,
           author.followerCount,
           author.followingCount ?? 0,
-          author.isVerified ? 1 : 0
+          author.isVerified ? 1 : 0,
         );
       }
     },
 
     async recordReply(log: ReplyLogEntry): Promise<void> {
-      db.run(`
+      db.run(
+        `
         INSERT INTO replied_tweets (
           tweet_id, author_id, author_username, tweet_text, tweet_created_at,
           reply_tweet_id, success, error_message, manus_task_id,
           manus_duration_ms, png_size_bytes, reply_template_index
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        log.tweetId,
-        log.authorId,
-        log.authorUsername,
-        log.tweetText,
-        log.tweetCreatedAt.toISOString(),
-        log.replyTweetId,
-        log.success ? 1 : 0,
-        log.errorMessage ?? null,
-        log.manusTaskId ?? null,
-        log.manusDuration ?? null,
-        log.pngSize ?? null,
-        log.templateIndex ?? null,
-      ]);
+      `,
+        [
+          log.tweetId,
+          log.authorId,
+          log.authorUsername,
+          log.tweetText,
+          log.tweetCreatedAt.toISOString(),
+          log.replyTweetId,
+          log.success ? 1 : 0,
+          log.errorMessage ?? null,
+          log.manusTaskId ?? null,
+          log.manusDuration ?? null,
+          log.pngSize ?? null,
+          log.templateIndex ?? null,
+        ],
+      );
     },
 
     async initialize(): Promise<void> {
@@ -405,10 +416,8 @@ describe('Database Operations', () => {
         .get();
       expect(tableInfo).not.toBeNull();
 
-      const columns = testDb.db
-        .query("PRAGMA table_info(replied_tweets)")
-        .all() as { name: string }[];
-      const columnNames = columns.map(c => c.name);
+      const columns = testDb.db.query('PRAGMA table_info(replied_tweets)').all() as { name: string }[];
+      const columnNames = columns.map((c) => c.name);
 
       expect(columnNames).toContain('id');
       expect(columnNames).toContain('tweet_id');
@@ -432,10 +441,8 @@ describe('Database Operations', () => {
         .get();
       expect(tableInfo).not.toBeNull();
 
-      const columns = testDb.db
-        .query("PRAGMA table_info(rate_limits)")
-        .all() as { name: string }[];
-      const columnNames = columns.map(c => c.name);
+      const columns = testDb.db.query('PRAGMA table_info(rate_limits)').all() as { name: string }[];
+      const columnNames = columns.map((c) => c.name);
 
       expect(columnNames).toContain('id');
       expect(columnNames).toContain('last_reply_at');
@@ -452,10 +459,8 @@ describe('Database Operations', () => {
         .get();
       expect(tableInfo).not.toBeNull();
 
-      const columns = testDb.db
-        .query("PRAGMA table_info(author_cache)")
-        .all() as { name: string }[];
-      const columnNames = columns.map(c => c.name);
+      const columns = testDb.db.query('PRAGMA table_info(author_cache)').all() as { name: string }[];
+      const columnNames = columns.map((c) => c.name);
 
       expect(columnNames).toContain('author_id');
       expect(columnNames).toContain('username');
@@ -471,7 +476,7 @@ describe('Database Operations', () => {
       const indexes = testDb.db
         .query("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'")
         .all() as { name: string }[];
-      const indexNames = indexes.map(i => i.name);
+      const indexNames = indexes.map((i) => i.name);
 
       expect(indexNames).toContain('idx_replied_tweets_author');
       expect(indexNames).toContain('idx_replied_tweets_date');
@@ -555,18 +560,24 @@ describe('Database Operations', () => {
     });
 
     it('should count replies for specific author', async () => {
-      await testDb.interface.recordReply(createSampleReplyLog({
-        tweetId: 'tweet_1',
-        authorId: 'author_A',
-      }));
-      await testDb.interface.recordReply(createSampleReplyLog({
-        tweetId: 'tweet_2',
-        authorId: 'author_A',
-      }));
-      await testDb.interface.recordReply(createSampleReplyLog({
-        tweetId: 'tweet_3',
-        authorId: 'author_B',
-      }));
+      await testDb.interface.recordReply(
+        createSampleReplyLog({
+          tweetId: 'tweet_1',
+          authorId: 'author_A',
+        }),
+      );
+      await testDb.interface.recordReply(
+        createSampleReplyLog({
+          tweetId: 'tweet_2',
+          authorId: 'author_A',
+        }),
+      );
+      await testDb.interface.recordReply(
+        createSampleReplyLog({
+          tweetId: 'tweet_3',
+          authorId: 'author_B',
+        }),
+      );
 
       const countA = await testDb.interface.getRepliesForAuthorToday('author_A');
       const countB = await testDb.interface.getRepliesForAuthorToday('author_B');
@@ -586,10 +597,12 @@ describe('Database Operations', () => {
       `);
 
       // Insert a recent reply
-      await testDb.interface.recordReply(createSampleReplyLog({
-        tweetId: 'recent_tweet',
-        authorId: 'author_old',
-      }));
+      await testDb.interface.recordReply(
+        createSampleReplyLog({
+          tweetId: 'recent_tweet',
+          authorId: 'author_old',
+        }),
+      );
 
       const count = await testDb.interface.getRepliesForAuthorToday('author_old');
       expect(count).toBe(1); // Only the recent one should count
@@ -733,8 +746,10 @@ describe('Database Operations', () => {
       const log = createSampleReplyLog();
       await testDb.interface.recordReply(log);
 
-      const row = testDb.db.query('SELECT * FROM replied_tweets WHERE tweet_id = ?')
-        .get(log.tweetId) as Record<string, unknown>;
+      const row = testDb.db.query('SELECT * FROM replied_tweets WHERE tweet_id = ?').get(log.tweetId) as Record<
+        string,
+        unknown
+      >;
 
       expect(row).not.toBeNull();
       expect(row.tweet_id).toBe(log.tweetId);
@@ -758,8 +773,10 @@ describe('Database Operations', () => {
       });
       await testDb.interface.recordReply(log);
 
-      const row = testDb.db.query('SELECT * FROM replied_tweets WHERE tweet_id = ?')
-        .get(log.tweetId) as Record<string, unknown>;
+      const row = testDb.db.query('SELECT * FROM replied_tweets WHERE tweet_id = ?').get(log.tweetId) as Record<
+        string,
+        unknown
+      >;
 
       expect(row.success).toBe(0);
       expect(row.reply_tweet_id).toBeNull();
@@ -778,8 +795,10 @@ describe('Database Operations', () => {
       };
       await testDb.interface.recordReply(log);
 
-      const row = testDb.db.query('SELECT * FROM replied_tweets WHERE tweet_id = ?')
-        .get(log.tweetId) as Record<string, unknown>;
+      const row = testDb.db.query('SELECT * FROM replied_tweets WHERE tweet_id = ?').get(log.tweetId) as Record<
+        string,
+        unknown
+      >;
 
       expect(row.manus_task_id).toBeNull();
       expect(row.manus_duration_ms).toBeNull();
@@ -906,7 +925,14 @@ describe('Database Operations', () => {
       it('should handle optional fields in seed data', async () => {
         const authors: SeedAuthor[] = [
           { authorId: 'opt_1', username: 'optuser', name: 'Optional', followerCount: 50000 },
-          { authorId: 'opt_2', username: 'fulluser', name: 'Full', followerCount: 60000, followingCount: 100, isVerified: true },
+          {
+            authorId: 'opt_2',
+            username: 'fulluser',
+            name: 'Full',
+            followerCount: 60000,
+            followingCount: 100,
+            isVerified: true,
+          },
         ];
 
         await testDb.interface.seedAuthorsFromJson(authors);
@@ -1152,8 +1178,9 @@ describe('Database Operations', () => {
       const log = createSampleReplyLog({ tweetId: 'long_tweet', tweetText: longText });
       await testDb.interface.recordReply(log);
 
-      const row = testDb.db.query('SELECT tweet_text FROM replied_tweets WHERE tweet_id = ?')
-        .get('long_tweet') as { tweet_text: string };
+      const row = testDb.db.query('SELECT tweet_text FROM replied_tweets WHERE tweet_id = ?').get('long_tweet') as {
+        tweet_text: string;
+      };
       expect(row.tweet_text).toBe(longText);
     });
 
@@ -1161,13 +1188,13 @@ describe('Database Operations', () => {
       const author = createSampleAuthor({
         authorId: 'special_chars',
         username: 'user_with-dashes.and_underscores',
-        name: "User's Name with \"quotes\"",
+        name: 'User\'s Name with "quotes"',
       });
       await testDb.interface.upsertAuthorCache(author);
 
       const cached = await testDb.interface.getAuthorCache('special_chars');
       expect(cached?.username).toBe('user_with-dashes.and_underscores');
-      expect(cached?.name).toBe("User's Name with \"quotes\"");
+      expect(cached?.name).toBe('User\'s Name with "quotes"');
     });
 
     it('should handle large follower counts', async () => {

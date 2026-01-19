@@ -3,15 +3,8 @@
  * Tests all 4 filter stages: content, deduplication, follower count, rate limits
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import type {
-  TweetCandidate,
-  Database,
-  Config,
-  RateLimitState,
-  AuthorCacheEntry,
-  CircuitBreakerState,
-} from '../types.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AuthorCacheEntry, Config, Database, TweetCandidate } from '../types.js';
 
 // Mock the imports before importing FilterPipeline
 vi.mock('../database.js', () => ({
@@ -35,11 +28,11 @@ vi.mock('@steipete/bird', () => ({
   resolveCredentials: vi.fn(),
 }));
 
+import { resolveCredentials, TwitterClient } from '@steipete/bird';
+import { loadConfig } from '../config.js';
+import { initDatabase } from '../database.js';
 // Import after mocks
 import { FilterPipeline } from '../filter.js';
-import { initDatabase } from '../database.js';
-import { loadConfig } from '../config.js';
-import { resolveCredentials, TwitterClient } from '@steipete/bird';
 
 /**
  * Create a mock TweetCandidate
@@ -133,27 +126,20 @@ function createMockConfig(overrides: Partial<Config> = {}): Config {
   };
 
   // Deep merge overrides
-  return deepMerge(baseConfig as unknown as Record<string, unknown>, overrides as unknown as Record<string, unknown>) as unknown as Config;
+  return deepMerge(
+    baseConfig as unknown as Record<string, unknown>,
+    overrides as unknown as Record<string, unknown>,
+  ) as unknown as Config;
 }
 
 /**
  * Deep merge helper
  */
-function deepMerge(
-  target: Record<string, unknown>,
-  source: Record<string, unknown>
-): Record<string, unknown> {
+function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
   const result = { ...target };
   for (const key of Object.keys(source)) {
-    if (
-      source[key] !== null &&
-      typeof source[key] === 'object' &&
-      !Array.isArray(source[key])
-    ) {
-      result[key] = deepMerge(
-        (target[key] as Record<string, unknown>) || {},
-        source[key] as Record<string, unknown>
-      );
+    if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+      result[key] = deepMerge((target[key] as Record<string, unknown>) || {}, source[key] as Record<string, unknown>);
     } else {
       result[key] = source[key];
     }
@@ -199,7 +185,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedContent).toBe(1);
-        expect(result.stats.reasons['too_short']).toBe(1);
+        expect(result.stats.reasons.too_short).toBe(1);
       });
 
       it('should accept tweets with exactly 100 characters', async () => {
@@ -221,7 +207,7 @@ describe('FilterPipeline', () => {
 
         const result = await filterPipeline.filter([exactTweet]);
 
-        expect(result.stats.reasons['too_short']).toBeUndefined();
+        expect(result.stats.reasons.too_short).toBeUndefined();
       });
 
       it('should accept tweets longer than 100 characters', async () => {
@@ -242,7 +228,7 @@ describe('FilterPipeline', () => {
 
         const result = await filterPipeline.filter([longTweet]);
 
-        expect(result.stats.reasons['too_short']).toBeUndefined();
+        expect(result.stats.reasons.too_short).toBeUndefined();
       });
     });
 
@@ -256,7 +242,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedContent).toBe(1);
-        expect(result.stats.reasons['too_old']).toBe(1);
+        expect(result.stats.reasons.too_old).toBe(1);
       });
 
       it('should accept tweets exactly 30 minutes old', async () => {
@@ -300,7 +286,7 @@ describe('FilterPipeline', () => {
 
         const result = await filterPipeline.filter([recentTweet]);
 
-        expect(result.stats.reasons['too_old']).toBeUndefined();
+        expect(result.stats.reasons.too_old).toBeUndefined();
       });
     });
 
@@ -314,7 +300,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedContent).toBe(1);
-        expect(result.stats.reasons['wrong_language']).toBe(1);
+        expect(result.stats.reasons.wrong_language).toBe(1);
       });
 
       it('should accept tweets with English language', async () => {
@@ -335,7 +321,7 @@ describe('FilterPipeline', () => {
 
         const result = await filterPipeline.filter([englishTweet]);
 
-        expect(result.stats.reasons['wrong_language']).toBeUndefined();
+        expect(result.stats.reasons.wrong_language).toBeUndefined();
       });
     });
 
@@ -349,7 +335,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedContent).toBe(1);
-        expect(result.stats.reasons['is_retweet']).toBe(1);
+        expect(result.stats.reasons.is_retweet).toBe(1);
       });
 
       it('should accept non-retweets', async () => {
@@ -370,7 +356,7 @@ describe('FilterPipeline', () => {
 
         const result = await filterPipeline.filter([originalTweet]);
 
-        expect(result.stats.reasons['is_retweet']).toBeUndefined();
+        expect(result.stats.reasons.is_retweet).toBeUndefined();
       });
     });
   });
@@ -390,7 +376,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedDuplicate).toBe(1);
-        expect(result.stats.reasons['already_replied_to_tweet']).toBe(1);
+        expect(result.stats.reasons.already_replied_to_tweet).toBe(1);
         expect(mockDb.hasRepliedToTweet).toHaveBeenCalledWith('tweet-123');
       });
 
@@ -412,7 +398,7 @@ describe('FilterPipeline', () => {
 
         const result = await filterPipeline.filter([tweet]);
 
-        expect(result.stats.reasons['already_replied_to_tweet']).toBeUndefined();
+        expect(result.stats.reasons.already_replied_to_tweet).toBeUndefined();
       });
     });
 
@@ -427,7 +413,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedDuplicate).toBe(1);
-        expect(result.stats.reasons['author_limit_reached']).toBe(1);
+        expect(result.stats.reasons.author_limit_reached).toBe(1);
         expect(mockDb.getRepliesForAuthorToday).toHaveBeenCalledWith('author-456');
       });
 
@@ -450,7 +436,7 @@ describe('FilterPipeline', () => {
 
         const result = await filterPipeline.filter([tweet]);
 
-        expect(result.stats.reasons['author_limit_reached']).toBeUndefined();
+        expect(result.stats.reasons.author_limit_reached).toBeUndefined();
       });
     });
   });
@@ -503,7 +489,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedFollowers).toBe(1);
-        expect(result.stats.reasons['below_threshold']).toBe(1);
+        expect(result.stats.reasons.below_threshold).toBe(1);
       });
     });
 
@@ -583,7 +569,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedFollowers).toBe(1);
-        expect(result.stats.reasons['below_threshold']).toBe(1);
+        expect(result.stats.reasons.below_threshold).toBe(1);
         // Should still cache the result
         expect(mockDb.upsertAuthorCache).toHaveBeenCalled();
       });
@@ -619,7 +605,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedFollowers).toBe(1);
-        expect(result.stats.reasons['api_error']).toBe(1);
+        expect(result.stats.reasons.api_error).toBe(1);
       });
     });
   });
@@ -655,7 +641,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedRateLimit).toBe(1);
-        expect(result.stats.reasons['daily_limit_exceeded']).toBe(1);
+        expect(result.stats.reasons.daily_limit_exceeded).toBe(1);
       });
 
       it('should accept when daily count is below limit', async () => {
@@ -682,7 +668,7 @@ describe('FilterPipeline', () => {
         const result = await filterPipeline.filter([tweet]);
 
         expect(result.eligible).not.toBeNull();
-        expect(result.stats.reasons['daily_limit_exceeded']).toBeUndefined();
+        expect(result.stats.reasons.daily_limit_exceeded).toBeUndefined();
       });
     });
 
@@ -712,7 +698,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedRateLimit).toBe(1);
-        expect(result.stats.reasons['gap_too_short']).toBe(1);
+        expect(result.stats.reasons.gap_too_short).toBe(1);
       });
 
       it('should accept when gap since last reply is sufficient', async () => {
@@ -739,7 +725,7 @@ describe('FilterPipeline', () => {
         const result = await filterPipeline.filter([tweet]);
 
         expect(result.eligible).not.toBeNull();
-        expect(result.stats.reasons['gap_too_short']).toBeUndefined();
+        expect(result.stats.reasons.gap_too_short).toBeUndefined();
       });
 
       it('should accept when no previous reply (lastReplyAt is null)', async () => {
@@ -766,7 +752,7 @@ describe('FilterPipeline', () => {
         const result = await filterPipeline.filter([tweet]);
 
         expect(result.eligible).not.toBeNull();
-        expect(result.stats.reasons['gap_too_short']).toBeUndefined();
+        expect(result.stats.reasons.gap_too_short).toBeUndefined();
       });
     });
 
@@ -800,7 +786,7 @@ describe('FilterPipeline', () => {
 
         expect(result.eligible).toBeNull();
         expect(result.stats.rejectedRateLimit).toBe(1);
-        expect(result.stats.reasons['author_daily_limit']).toBe(1);
+        expect(result.stats.reasons.author_daily_limit).toBe(1);
       });
 
       it('should accept when per-author count is below limit', async () => {
@@ -829,7 +815,7 @@ describe('FilterPipeline', () => {
         const result = await filterPipeline.filter([tweet]);
 
         expect(result.eligible).not.toBeNull();
-        expect(result.stats.reasons['author_daily_limit']).toBeUndefined();
+        expect(result.stats.reasons.author_daily_limit).toBeUndefined();
       });
     });
   });
@@ -901,10 +887,10 @@ describe('FilterPipeline', () => {
       const result = await filterPipeline.filter(tweets);
 
       expect(result.eligible).toBeNull();
-      expect(result.stats.reasons['too_short']).toBe(1);
-      expect(result.stats.reasons['wrong_language']).toBe(1);
-      expect(result.stats.reasons['is_retweet']).toBe(1);
-      expect(result.stats.reasons['too_old']).toBe(1);
+      expect(result.stats.reasons.too_short).toBe(1);
+      expect(result.stats.reasons.wrong_language).toBe(1);
+      expect(result.stats.reasons.is_retweet).toBe(1);
+      expect(result.stats.reasons.too_old).toBe(1);
     });
 
     it('should call resetDailyCountIfNeeded before rate limit check', async () => {

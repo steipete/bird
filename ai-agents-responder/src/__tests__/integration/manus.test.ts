@@ -11,7 +11,7 @@
  * - Timeout handling works correctly
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { beforeAll, describe, expect, it } from 'bun:test';
 import { ManusClient } from '../../manus-client.js';
 
 // =============================================================================
@@ -75,108 +75,120 @@ describe('Manus API Integration Tests', () => {
       expect(client).toBeDefined();
     });
 
-    it('should create a task with createTask()', async () => {
-      if (skipWithoutApiKey()) {
-        expect(true).toBe(true);
-        return;
-      }
+    it(
+      'should create a task with createTask()',
+      async () => {
+        if (skipWithoutApiKey()) {
+          expect(true).toBe(true);
+          return;
+        }
 
-      const result = await client.createTask(TEST_PROMPT);
+        const result = await client.createTask(TEST_PROMPT);
 
-      expect(result).toBeDefined();
-      expect(result.taskId).toBeDefined();
-      expect(typeof result.taskId).toBe('string');
-      expect(result.taskId.length).toBeGreaterThan(0);
+        expect(result).toBeDefined();
+        expect(result.taskId).toBeDefined();
+        expect(typeof result.taskId).toBe('string');
+        expect(result.taskId.length).toBeGreaterThan(0);
 
-      // taskUrl and shareUrl may or may not be present depending on API
-      if (result.taskUrl) {
-        expect(typeof result.taskUrl).toBe('string');
-      }
-      if (result.shareUrl) {
-        expect(typeof result.shareUrl).toBe('string');
-      }
+        // taskUrl and shareUrl may or may not be present depending on API
+        if (result.taskUrl) {
+          expect(typeof result.taskUrl).toBe('string');
+        }
+        if (result.shareUrl) {
+          expect(typeof result.shareUrl).toBe('string');
+        }
 
-      console.log(`  Created task: ${result.taskId}`);
-    }, TEST_TIMEOUT);
+        console.log(`  Created task: ${result.taskId}`);
+      },
+      TEST_TIMEOUT,
+    );
 
-    it('should poll task to completion with pollTask()', async () => {
-      if (skipWithoutApiKey()) {
-        expect(true).toBe(true);
-        return;
-      }
+    it(
+      'should poll task to completion with pollTask()',
+      async () => {
+        if (skipWithoutApiKey()) {
+          expect(true).toBe(true);
+          return;
+        }
 
-      // Create a task first
-      const createResult = await client.createTask(TEST_PROMPT);
-      expect(createResult.taskId).toBeDefined();
+        // Create a task first
+        const createResult = await client.createTask(TEST_PROMPT);
+        expect(createResult.taskId).toBeDefined();
 
-      console.log(`  Polling task ${createResult.taskId}...`);
+        console.log(`  Polling task ${createResult.taskId}...`);
 
-      // Poll for completion with extended timeout
-      const pollResult = await client.pollTask(createResult.taskId, {
-        timeoutMs: 150000, // 2.5 minutes
-        pollIntervalMs: 5000, // 5 seconds
-      });
+        // Poll for completion with extended timeout
+        const pollResult = await client.pollTask(createResult.taskId, {
+          timeoutMs: 150000, // 2.5 minutes
+          pollIntervalMs: 5000, // 5 seconds
+        });
 
-      // Result should not be null (timeout) if API is healthy
-      expect(pollResult).toBeDefined();
-      expect(pollResult).not.toBeNull();
+        // Result should not be null (timeout) if API is healthy
+        expect(pollResult).toBeDefined();
+        expect(pollResult).not.toBeNull();
 
-      if (pollResult) {
-        // Check status is one of the expected values
-        expect(['completed', 'failed', 'cancelled']).toContain(pollResult.status);
+        if (pollResult) {
+          // Check status is one of the expected values
+          expect(['completed', 'failed', 'cancelled']).toContain(pollResult.status);
 
-        if (pollResult.status === 'completed') {
-          // Should have an output URL for PDF
-          expect(pollResult.outputUrl).toBeDefined();
-          expect(typeof pollResult.outputUrl).toBe('string');
-          console.log(`  Task completed with output URL`);
-        } else {
-          // Failed or cancelled
-          console.log(`  Task ended with status: ${pollResult.status}`);
-          if (pollResult.error) {
-            console.log(`  Error: ${pollResult.error}`);
+          if (pollResult.status === 'completed') {
+            // Should have an output URL for PDF
+            expect(pollResult.outputUrl).toBeDefined();
+            expect(typeof pollResult.outputUrl).toBe('string');
+            console.log(`  Task completed with output URL`);
+          } else {
+            // Failed or cancelled
+            console.log(`  Task ended with status: ${pollResult.status}`);
+            if (pollResult.error) {
+              console.log(`  Error: ${pollResult.error}`);
+            }
           }
         }
-      }
-    }, TEST_TIMEOUT);
+      },
+      TEST_TIMEOUT,
+    );
 
-    it('should download PDF with downloadPdf()', async () => {
-      if (skipWithoutApiKey()) {
-        expect(true).toBe(true);
-        return;
-      }
+    it(
+      'should download PDF with downloadPdf()',
+      async () => {
+        if (skipWithoutApiKey()) {
+          expect(true).toBe(true);
+          return;
+        }
 
-      // Create and poll a task to completion first
-      const createResult = await client.createTask(TEST_PROMPT);
-      console.log(`  Created task: ${createResult.taskId}`);
+        // Create and poll a task to completion first
+        const createResult = await client.createTask(TEST_PROMPT);
+        console.log(`  Created task: ${createResult.taskId}`);
 
-      const pollResult = await client.pollTask(createResult.taskId, {
-        timeoutMs: 150000,
-        pollIntervalMs: 5000,
-      });
+        const pollResult = await client.pollTask(createResult.taskId, {
+          timeoutMs: 150000,
+          pollIntervalMs: 5000,
+        });
 
-      if (!pollResult || pollResult.status !== 'completed' || !pollResult.outputUrl) {
-        console.log('  SKIPPED: Could not get completed task with PDF URL');
-        console.log(`  Status: ${pollResult?.status || 'timeout'}`);
-        expect(true).toBe(true);
-        return;
-      }
+        if (!pollResult || pollResult.status !== 'completed' || !pollResult.outputUrl) {
+          console.log('  SKIPPED: Could not get completed task with PDF URL');
+          console.log(`  Status: ${pollResult?.status || 'timeout'}`);
+          expect(true).toBe(true);
+          return;
+        }
 
-      console.log(`  Downloading PDF...`);
+        console.log(`  Downloading PDF...`);
 
-      // Download the PDF
-      const pdfBytes = await client.downloadPdf(pollResult.outputUrl);
+        // Download the PDF
+        const pdfBytes = await client.downloadPdf(pollResult.outputUrl);
 
-      expect(pdfBytes).toBeDefined();
-      expect(pdfBytes).toBeInstanceOf(Uint8Array);
-      expect(pdfBytes.length).toBeGreaterThan(0);
+        expect(pdfBytes).toBeDefined();
+        expect(pdfBytes).toBeInstanceOf(Uint8Array);
+        expect(pdfBytes.length).toBeGreaterThan(0);
 
-      // PDF files start with "%PDF-" magic bytes
-      const pdfMagic = new TextDecoder().decode(pdfBytes.slice(0, 5));
-      expect(pdfMagic).toBe('%PDF-');
+        // PDF files start with "%PDF-" magic bytes
+        const pdfMagic = new TextDecoder().decode(pdfBytes.slice(0, 5));
+        expect(pdfMagic).toBe('%PDF-');
 
-      console.log(`  Downloaded PDF: ${pdfBytes.length} bytes`);
-    }, TEST_TIMEOUT);
+        console.log(`  Downloaded PDF: ${pdfBytes.length} bytes`);
+      },
+      TEST_TIMEOUT,
+    );
   });
 
   describe('timeout handling', () => {
@@ -291,58 +303,62 @@ describe('Manus API Integration Tests', () => {
 // =============================================================================
 
 describe('Manus Full Pipeline Integration', () => {
-  it('should complete full createTask -> pollTask -> downloadPdf flow', async () => {
-    if (skipWithoutApiKey()) {
-      expect(true).toBe(true);
-      return;
-    }
+  it(
+    'should complete full createTask -> pollTask -> downloadPdf flow',
+    async () => {
+      if (skipWithoutApiKey()) {
+        expect(true).toBe(true);
+        return;
+      }
 
-    const client = new ManusClient(MANUS_API_KEY);
+      const client = new ManusClient(MANUS_API_KEY);
 
-    console.log('  Starting full pipeline test...');
+      console.log('  Starting full pipeline test...');
 
-    // Step 1: Create task
-    const startTime = Date.now();
-    const createResult = await client.createTask(TEST_PROMPT);
-    const createDuration = Date.now() - startTime;
+      // Step 1: Create task
+      const startTime = Date.now();
+      const createResult = await client.createTask(TEST_PROMPT);
+      const createDuration = Date.now() - startTime;
 
-    expect(createResult.taskId).toBeDefined();
-    console.log(`  1. Created task in ${createDuration}ms: ${createResult.taskId}`);
+      expect(createResult.taskId).toBeDefined();
+      console.log(`  1. Created task in ${createDuration}ms: ${createResult.taskId}`);
 
-    // Step 2: Poll for completion
-    const pollStartTime = Date.now();
-    const pollResult = await client.pollTask(createResult.taskId, {
-      timeoutMs: 150000,
-      pollIntervalMs: 5000,
-    });
-    const pollDuration = Date.now() - pollStartTime;
+      // Step 2: Poll for completion
+      const pollStartTime = Date.now();
+      const pollResult = await client.pollTask(createResult.taskId, {
+        timeoutMs: 150000,
+        pollIntervalMs: 5000,
+      });
+      const pollDuration = Date.now() - pollStartTime;
 
-    expect(pollResult).not.toBeNull();
-    console.log(`  2. Polled task for ${pollDuration}ms, status: ${pollResult?.status}`);
+      expect(pollResult).not.toBeNull();
+      console.log(`  2. Polled task for ${pollDuration}ms, status: ${pollResult?.status}`);
 
-    if (pollResult?.status !== 'completed' || !pollResult.outputUrl) {
-      console.log('  Pipeline stopped: Task did not complete successfully');
-      expect(true).toBe(true); // Pass test - API might be under load
-      return;
-    }
+      if (pollResult?.status !== 'completed' || !pollResult.outputUrl) {
+        console.log('  Pipeline stopped: Task did not complete successfully');
+        expect(true).toBe(true); // Pass test - API might be under load
+        return;
+      }
 
-    // Step 3: Download PDF
-    const downloadStartTime = Date.now();
-    const pdfBytes = await client.downloadPdf(pollResult.outputUrl);
-    const downloadDuration = Date.now() - downloadStartTime;
+      // Step 3: Download PDF
+      const downloadStartTime = Date.now();
+      const pdfBytes = await client.downloadPdf(pollResult.outputUrl);
+      const downloadDuration = Date.now() - downloadStartTime;
 
-    expect(pdfBytes.length).toBeGreaterThan(0);
-    console.log(`  3. Downloaded PDF in ${downloadDuration}ms: ${pdfBytes.length} bytes`);
+      expect(pdfBytes.length).toBeGreaterThan(0);
+      console.log(`  3. Downloaded PDF in ${downloadDuration}ms: ${pdfBytes.length} bytes`);
 
-    // Validate it's a real PDF
-    const pdfMagic = new TextDecoder().decode(pdfBytes.slice(0, 5));
-    expect(pdfMagic).toBe('%PDF-');
+      // Validate it's a real PDF
+      const pdfMagic = new TextDecoder().decode(pdfBytes.slice(0, 5));
+      expect(pdfMagic).toBe('%PDF-');
 
-    const totalDuration = Date.now() - startTime;
-    console.log(`  Full pipeline completed in ${totalDuration}ms`);
-    console.log(`    - Create: ${createDuration}ms`);
-    console.log(`    - Poll: ${pollDuration}ms`);
-    console.log(`    - Download: ${downloadDuration}ms`);
-    console.log(`    - PDF size: ${pdfBytes.length} bytes`);
-  }, TEST_TIMEOUT);
+      const totalDuration = Date.now() - startTime;
+      console.log(`  Full pipeline completed in ${totalDuration}ms`);
+      console.log(`    - Create: ${createDuration}ms`);
+      console.log(`    - Poll: ${pollDuration}ms`);
+      console.log(`    - Download: ${downloadDuration}ms`);
+      console.log(`    - PDF size: ${pdfBytes.length} bytes`);
+    },
+    TEST_TIMEOUT,
+  );
 });

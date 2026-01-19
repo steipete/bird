@@ -13,25 +13,24 @@
  * Uses real in-memory SQLite for database verification.
  */
 
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import { Database as BunDatabase } from 'bun:sqlite';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import type {
-  TweetCandidate,
-  Database,
-  Config,
-  RateLimitState,
   AuthorCacheEntry,
   CircuitBreakerState,
   CircuitBreakerUpdate,
-  ReplyLogEntry,
-  SeedAuthor,
+  Config,
+  Database,
   GeneratorResult,
-  ResponderResult,
-  PollerResult,
-  FilterResult,
   ManusTaskResponse,
   ManusTaskResult,
+  PollerResult,
   PollOptions,
+  RateLimitState,
+  ReplyLogEntry,
+  ResponderResult,
+  SeedAuthor,
+  TweetCandidate,
 } from '../../types.js';
 
 // =============================================================================
@@ -103,18 +102,22 @@ function createTestDatabase(): { db: BunDatabase; interface: Database } {
     },
 
     async getRepliesForAuthorToday(authorId: string): Promise<number> {
-      const result = db.query(`
+      const result = db
+        .query(`
         SELECT COUNT(*) as count FROM replied_tweets
         WHERE author_id = ? AND replied_at > datetime('now', '-24 hours')
-      `).get(authorId) as { count: number } | null;
+      `)
+        .get(authorId) as { count: number } | null;
       return result?.count ?? 0;
     },
 
     async getRateLimitState(): Promise<RateLimitState> {
       await this.resetDailyCountIfNeeded();
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT daily_count, last_reply_at, daily_reset_at FROM rate_limits WHERE id = 1
-      `).get() as { daily_count: number; last_reply_at: string | null; daily_reset_at: string } | null;
+      `)
+        .get() as { daily_count: number; last_reply_at: string | null; daily_reset_at: string } | null;
 
       return {
         dailyCount: row?.daily_count ?? 0,
@@ -140,10 +143,12 @@ function createTestDatabase(): { db: BunDatabase; interface: Database } {
     },
 
     async getCircuitBreakerState(): Promise<CircuitBreakerState> {
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT circuit_breaker_state, circuit_breaker_failures, circuit_breaker_opened_at
         FROM rate_limits WHERE id = 1
-      `).get() as {
+      `)
+        .get() as {
         circuit_breaker_state: string;
         circuit_breaker_failures: number;
         circuit_breaker_opened_at: string | null;
@@ -190,10 +195,12 @@ function createTestDatabase(): { db: BunDatabase; interface: Database } {
     },
 
     async getAuthorCache(authorId: string): Promise<AuthorCacheEntry | null> {
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT author_id, username, name, follower_count, following_count, is_verified, updated_at
         FROM author_cache WHERE author_id = ? AND updated_at > datetime('now', '-24 hours')
-      `).get(authorId) as {
+      `)
+        .get(authorId) as {
         author_id: string;
         username: string;
         name: string | null;
@@ -203,7 +210,9 @@ function createTestDatabase(): { db: BunDatabase; interface: Database } {
         updated_at: string;
       } | null;
 
-      if (!row) return null;
+      if (!row) {
+        return null;
+      }
 
       return {
         authorId: row.author_id,
@@ -217,36 +226,68 @@ function createTestDatabase(): { db: BunDatabase; interface: Database } {
     },
 
     async upsertAuthorCache(author: AuthorCacheEntry): Promise<void> {
-      db.run(`
+      db.run(
+        `
         INSERT INTO author_cache (author_id, username, name, follower_count, following_count, is_verified, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(author_id) DO UPDATE SET
           username = excluded.username, name = excluded.name, follower_count = excluded.follower_count,
           following_count = excluded.following_count, is_verified = excluded.is_verified, updated_at = datetime('now')
-      `, [author.authorId, author.username, author.name, author.followerCount, author.followingCount, author.isVerified ? 1 : 0]);
+      `,
+        [
+          author.authorId,
+          author.username,
+          author.name,
+          author.followerCount,
+          author.followingCount,
+          author.isVerified ? 1 : 0,
+        ],
+      );
     },
 
     async seedAuthorsFromJson(authors: SeedAuthor[]): Promise<void> {
       for (const author of authors) {
-        db.run(`
+        db.run(
+          `
           INSERT INTO author_cache (author_id, username, name, follower_count, following_count, is_verified, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
           ON CONFLICT(author_id) DO UPDATE SET username = excluded.username, name = excluded.name,
             follower_count = excluded.follower_count, updated_at = datetime('now')
-        `, [author.authorId, author.username, author.name, author.followerCount, author.followingCount ?? 0, author.isVerified ? 1 : 0]);
+        `,
+          [
+            author.authorId,
+            author.username,
+            author.name,
+            author.followerCount,
+            author.followingCount ?? 0,
+            author.isVerified ? 1 : 0,
+          ],
+        );
       }
     },
 
     async recordReply(log: ReplyLogEntry): Promise<void> {
-      db.run(`
+      db.run(
+        `
         INSERT INTO replied_tweets (tweet_id, author_id, author_username, tweet_text, tweet_created_at,
           reply_tweet_id, success, error_message, manus_task_id, manus_duration_ms, png_size_bytes, reply_template_index)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        log.tweetId, log.authorId, log.authorUsername, log.tweetText, log.tweetCreatedAt.toISOString(),
-        log.replyTweetId, log.success ? 1 : 0, log.errorMessage ?? null, log.manusTaskId ?? null,
-        log.manusDuration ?? null, log.pngSize ?? null, log.templateIndex ?? null,
-      ]);
+      `,
+        [
+          log.tweetId,
+          log.authorId,
+          log.authorUsername,
+          log.tweetText,
+          log.tweetCreatedAt.toISOString(),
+          log.replyTweetId,
+          log.success ? 1 : 0,
+          log.errorMessage ?? null,
+          log.manusTaskId ?? null,
+          log.manusDuration ?? null,
+          log.pngSize ?? null,
+          log.templateIndex ?? null,
+        ],
+      );
     },
 
     async initialize(): Promise<void> {},
@@ -324,7 +365,7 @@ function createTestConfig(): Config {
  */
 function createSamplePng(): Uint8Array {
   // PNG signature (8 bytes) + IHDR chunk (25 bytes minimum)
-  const pngSignature = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  const pngSignature = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   // Create a simple fake PNG with additional data
   const fakeData = new Uint8Array(1024);
   for (let i = 0; i < fakeData.length; i++) {
@@ -368,7 +409,7 @@ class MockPoller {
     this.mockTweets = tweets;
   }
 
-  async search(query: string, count: number): Promise<PollerResult> {
+  async search(_query: string, count: number): Promise<PollerResult> {
     return {
       success: true,
       tweets: this.mockTweets.slice(0, count),
@@ -405,7 +446,7 @@ class MockManusClient {
     };
   }
 
-  async pollTask(taskId: string, options?: PollOptions): Promise<ManusTaskResult | null> {
+  async pollTask(taskId: string, _options?: PollOptions): Promise<ManusTaskResult | null> {
     this.pollTaskCalls.push(taskId);
     if (this.shouldFail) {
       return {
@@ -436,12 +477,15 @@ class MockPdfConverter {
   public compressCalls: number = 0;
   private mockPng: Uint8Array = createSamplePng();
 
-  async convertToPng(pdf: Uint8Array, options?: { width?: number; dpi?: number; quality?: number }): Promise<Uint8Array> {
+  async convertToPng(
+    _pdf: Uint8Array,
+    _options?: { width?: number; dpi?: number; quality?: number },
+  ): Promise<Uint8Array> {
     this.convertCalls++;
     return this.mockPng;
   }
 
-  async compress(png: Uint8Array, quality: number): Promise<Uint8Array> {
+  async compress(png: Uint8Array, _quality: number): Promise<Uint8Array> {
     this.compressCalls++;
     return png;
   }
@@ -594,19 +638,31 @@ async function executePipelineCycle(components: PipelineComponents): Promise<Pip
 
     for (const tweet of searchResult.tweets) {
       // Content filters
-      if (tweet.text.length < config.filters.minTweetLength) continue;
-      if (tweet.language !== 'en') continue;
-      if (tweet.isRetweet) continue;
+      if (tweet.text.length < config.filters.minTweetLength) {
+        continue;
+      }
+      if (tweet.language !== 'en') {
+        continue;
+      }
+      if (tweet.isRetweet) {
+        continue;
+      }
 
       const ageMinutes = (Date.now() - tweet.createdAt.getTime()) / (1000 * 60);
-      if (ageMinutes > config.filters.maxTweetAgeMinutes) continue;
+      if (ageMinutes > config.filters.maxTweetAgeMinutes) {
+        continue;
+      }
 
       // Deduplication
       const hasReplied = await db.hasRepliedToTweet(tweet.id);
-      if (hasReplied) continue;
+      if (hasReplied) {
+        continue;
+      }
 
       const authorReplies = await db.getRepliesForAuthorToday(tweet.authorId);
-      if (authorReplies >= config.rateLimits.maxPerAuthorPerDay) continue;
+      if (authorReplies >= config.rateLimits.maxPerAuthorPerDay) {
+        continue;
+      }
 
       // Follower check (using cache)
       const cached = await db.getAuthorCache(tweet.authorId);
@@ -614,15 +670,21 @@ async function executePipelineCycle(components: PipelineComponents): Promise<Pip
         // In E2E test, we'll pre-seed the cache
         continue;
       }
-      if (cached.followerCount < config.filters.minFollowerCount) continue;
+      if (cached.followerCount < config.filters.minFollowerCount) {
+        continue;
+      }
 
       // Rate limit check
       const rateLimits = await db.getRateLimitState();
-      if (rateLimits.dailyCount >= config.rateLimits.maxDailyReplies) continue;
+      if (rateLimits.dailyCount >= config.rateLimits.maxDailyReplies) {
+        continue;
+      }
 
       if (rateLimits.lastReplyAt) {
         const gapMinutes = (Date.now() - rateLimits.lastReplyAt.getTime()) / (1000 * 60);
-        if (gapMinutes < config.rateLimits.minGapMinutes) continue;
+        if (gapMinutes < config.rateLimits.minGapMinutes) {
+          continue;
+        }
       }
 
       eligible = tweet;
@@ -1054,7 +1116,9 @@ describe('E2E: Full Pipeline with Mocks', () => {
       });
 
       // Query DB directly to check the error was recorded
-      const row = testDb.db.query('SELECT success, error_message FROM replied_tweets WHERE tweet_id = ?').get(sampleTweet.id) as {
+      const row = testDb.db
+        .query('SELECT success, error_message FROM replied_tweets WHERE tweet_id = ?')
+        .get(sampleTweet.id) as {
         success: number;
         error_message: string;
       };
@@ -1114,7 +1178,9 @@ describe('E2E: Full Pipeline with Mocks', () => {
         config,
       });
 
-      const row = testDb.db.query('SELECT success, error_message FROM replied_tweets WHERE tweet_id = ?').get(sampleTweet.id) as {
+      const row = testDb.db
+        .query('SELECT success, error_message FROM replied_tweets WHERE tweet_id = ?')
+        .get(sampleTweet.id) as {
         success: number;
         error_message: string;
       };
@@ -1154,7 +1220,9 @@ describe('E2E: Full Pipeline with Mocks', () => {
         config,
       });
 
-      const row = testDb.db.query('SELECT reply_tweet_id FROM replied_tweets WHERE tweet_id = ?').get(sampleTweet.id) as {
+      const row = testDb.db
+        .query('SELECT reply_tweet_id FROM replied_tweets WHERE tweet_id = ?')
+        .get(sampleTweet.id) as {
         reply_tweet_id: string;
       };
 
@@ -1176,10 +1244,12 @@ describe('E2E: Full Pipeline with Mocks', () => {
         config,
       });
 
-      const row = testDb.db.query(`
+      const row = testDb.db
+        .query(`
         SELECT tweet_id, author_id, author_username, success, manus_task_id, png_size_bytes
         FROM replied_tweets WHERE tweet_id = ?
-      `).get(sampleTweet.id) as {
+      `)
+        .get(sampleTweet.id) as {
         tweet_id: string;
         author_id: string;
         author_username: string;

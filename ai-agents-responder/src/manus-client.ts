@@ -3,12 +3,8 @@
  * Implements task creation, polling, and PDF download
  */
 
-import type {
-  ManusTaskResponse,
-  ManusTaskResult,
-  PollOptions,
-} from './types.js';
 import { logger } from './logger.js';
+import type { ManusTaskResponse, ManusTaskResult, PollOptions } from './types.js';
 
 /**
  * Manus API response types for type safety
@@ -46,11 +42,7 @@ const DEFAULT_POLL_OPTIONS: PollOptions = {
 /**
  * Fetch with timeout wrapper
  */
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs: number
-): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -78,16 +70,10 @@ function sleep(ms: number): Promise<void> {
 export class ManusClient {
   private readonly apiKey: string;
   private readonly apiBase: string;
-  private readonly defaultTimeoutMs: number;
 
-  constructor(
-    apiKey?: string,
-    apiBase: string = 'https://api.manus.ai/v1',
-    defaultTimeoutMs: number = 120000
-  ) {
+  constructor(apiKey?: string, apiBase: string = 'https://api.manus.ai/v1') {
     this.apiKey = apiKey || process.env.MANUS_API_KEY || '';
     this.apiBase = apiBase;
-    this.defaultTimeoutMs = defaultTimeoutMs;
   }
 
   /**
@@ -110,11 +96,11 @@ export class ManusClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({ prompt }),
       },
-      30000 // 30s timeout for task creation
+      30000, // 30s timeout for task creation
     );
 
     if (!response.ok) {
@@ -123,9 +109,7 @@ export class ManusClient {
         status: response.status,
         statusText: response.statusText,
       });
-      throw new Error(
-        `Manus API error: ${response.status} ${response.statusText} - ${errorText}`
-      );
+      throw new Error(`Manus API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = (await response.json()) as ManusCreateTaskApiResponse;
@@ -150,10 +134,7 @@ export class ManusClient {
    * Returns ManusTaskResult when status = 'completed'
    * Returns null on timeout (default 120s from options.timeoutMs)
    */
-  async pollTask(
-    taskId: string,
-    options: PollOptions = DEFAULT_POLL_OPTIONS
-  ): Promise<ManusTaskResult | null> {
+  async pollTask(taskId: string, options: PollOptions = DEFAULT_POLL_OPTIONS): Promise<ManusTaskResult | null> {
     const { timeoutMs, pollIntervalMs } = options;
     const url = `${this.apiBase}/tasks/${taskId}`;
     const startTime = Date.now();
@@ -171,10 +152,10 @@ export class ManusClient {
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${this.apiKey}`,
           },
         },
-        10000 // 10s timeout per poll request
+        10000, // 10s timeout per poll request
       );
 
       if (!response.ok) {
@@ -184,9 +165,7 @@ export class ManusClient {
           status: response.status,
           elapsed: Date.now() - startTime,
         });
-        throw new Error(
-          `Manus API error polling task: ${response.status} ${response.statusText}`
-        );
+        throw new Error(`Manus API error polling task: ${response.status} ${response.statusText}`);
       }
 
       const data = (await response.json()) as ManusPollTaskApiResponse;
@@ -255,7 +234,7 @@ export class ManusClient {
     const startTime = Date.now();
 
     logger.info(COMPONENT, 'download_pdf_start', {
-      url: url.substring(0, 50) + '...',
+      url: `${url.substring(0, 50)}...`,
     });
 
     const response = await fetchWithTimeout(
@@ -263,10 +242,10 @@ export class ManusClient {
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
         },
       },
-      60000 // 60s timeout for PDF download
+      60000, // 60s timeout for PDF download
     );
 
     if (!response.ok) {
@@ -275,23 +254,16 @@ export class ManusClient {
         status: response.status,
         statusText: response.statusText,
       });
-      throw new Error(
-        `Failed to download PDF: ${response.status} ${response.statusText}`
-      );
+      throw new Error(`Failed to download PDF: ${response.status} ${response.statusText}`);
     }
 
     // Validate content-type
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/pdf')) {
-      logger.error(
-        COMPONENT,
-        'download_pdf_invalid_content_type',
-        new Error(`Invalid content-type: ${contentType}`),
-        { contentType }
-      );
-      throw new Error(
-        `Invalid content-type for PDF: expected application/pdf, got ${contentType}`
-      );
+      logger.error(COMPONENT, 'download_pdf_invalid_content_type', new Error(`Invalid content-type: ${contentType}`), {
+        contentType,
+      });
+      throw new Error(`Invalid content-type for PDF: expected application/pdf, got ${contentType}`);
     }
 
     const arrayBuffer = await response.arrayBuffer();

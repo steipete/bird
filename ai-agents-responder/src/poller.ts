@@ -4,15 +4,10 @@
  * Wraps Bird's search functionality to return TweetCandidate[] format.
  */
 
-import {
-  TwitterClient,
-  resolveCredentials,
-  type TweetData,
-  type SearchResult,
-} from '@steipete/bird';
+import { resolveCredentials, type SearchResult, type TweetData, TwitterClient } from '@steipete/bird';
 import { loadConfig } from './config.js';
 import { logger } from './logger.js';
-import type { TweetCandidate, PollerResult, Config } from './types.js';
+import type { PollerResult, TweetCandidate } from './types.js';
 
 // POC hardcoded values
 const DEFAULT_QUERY = '"AI agents" -is:retweet lang:en';
@@ -97,7 +92,7 @@ export class Poller {
       } else if (config.bird.authToken && config.bird.ct0) {
         // Method 2: Manual tokens
         logger.info('poller', 'initializing_from_tokens', {
-          authTokenPrefix: config.bird.authToken.substring(0, 10) + '...',
+          authTokenPrefix: `${config.bird.authToken.substring(0, 10)}...`,
         });
 
         this.client = new TwitterClient({
@@ -135,10 +130,7 @@ export class Poller {
    * @param count - Number of results to fetch (defaults to 50)
    * @returns PollerResult with tweets array or error
    */
-  async search(
-    query: string = DEFAULT_QUERY,
-    count: number = DEFAULT_COUNT
-  ): Promise<PollerResult> {
+  async search(query: string = DEFAULT_QUERY, count: number = DEFAULT_COUNT): Promise<PollerResult> {
     const startTime = Date.now();
 
     // Ensure client is initialized

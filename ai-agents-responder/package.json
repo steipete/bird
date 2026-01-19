@@ -9,7 +9,10 @@
     "test": "vitest run --config vitest.config.ts && bun test src/__tests__/database.test.ts src/__tests__/integration/ src/__tests__/e2e/",
     "test:vitest": "vitest run --config vitest.config.ts",
     "test:bun": "bun test src/__tests__/database.test.ts src/__tests__/integration/ src/__tests__/e2e/",
-    "lint": "biome check src/",
+    "lint": "biome check src/ && oxlint src/",
+    "lint:biome": "biome check src/",
+    "lint:oxlint": "oxlint src/",
+    "lint:fix": "biome check --write src/",
     "format": "biome format --write src/",
     "seed-db": "bun run scripts/seed-db.ts"
   },

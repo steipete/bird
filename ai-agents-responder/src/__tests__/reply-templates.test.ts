@@ -3,13 +3,12 @@
  * Tests template selection, username replacement, attribution probability, and length validation
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  ReplyTemplateManager,
-  REPLY_TEMPLATES,
-  ATTRIBUTION_SUFFIX,
-  MAX_TWEET_LENGTH,
-} from '../reply-templates.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ATTRIBUTION_SUFFIX, MAX_TWEET_LENGTH, REPLY_TEMPLATES, ReplyTemplateManager } from '../reply-templates.js';
+
+// Top-level regex constants for linting compliance
+const EXCEEDS_280_CHARS_REGEX = /exceeds 280 chars/;
+const DIGIT_CHARACTERS_REGEX = /\d+ characters/;
 
 describe('Reply Templates', () => {
   describe('REPLY_TEMPLATES constant', () => {
@@ -143,7 +142,7 @@ describe('Reply Templates', () => {
           const template = REPLY_TEMPLATES[0];
           const longUsername = 'abcdefghijklmno'; // 15 chars
           const result = manager.buildReplyText(template, longUsername);
-          expect(result).toContain('@' + longUsername);
+          expect(result).toContain(`@${longUsername}`);
         });
       });
 
@@ -197,7 +196,7 @@ describe('Reply Templates', () => {
           }
 
           expect(attributedResult).not.toBeNull();
-          expect(attributedResult!.endsWith(ATTRIBUTION_SUFFIX)).toBe(true);
+          expect(attributedResult?.endsWith(ATTRIBUTION_SUFFIX)).toBe(true);
         });
       });
 
@@ -223,21 +222,21 @@ describe('Reply Templates', () => {
         it('should throw error when text exceeds 280 characters', () => {
           // Create a very long template that will exceed 280 chars
           // even without attribution, so it always fails
-          const longTemplate = '{username}' + 'x'.repeat(300);
+          const longTemplate = `{username}${'x'.repeat(300)}`;
 
           expect(() => {
             manager.buildReplyText(longTemplate, 'testuser');
-          }).toThrow(/exceeds 280 chars/);
+          }).toThrow(EXCEEDS_280_CHARS_REGEX);
         });
 
         it('should include actual length in overflow error message', () => {
-          const longTemplate = '{username}' + 'x'.repeat(300);
+          const longTemplate = `{username}${'x'.repeat(300)}`;
 
           try {
             manager.buildReplyText(longTemplate, 'test');
             expect.fail('Should have thrown');
           } catch (error) {
-            expect((error as Error).message).toMatch(/\d+ characters/);
+            expect((error as Error).message).toMatch(DIGIT_CHARACTERS_REGEX);
           }
         });
 
@@ -245,17 +244,17 @@ describe('Reply Templates', () => {
           // Create a template that's close to 280 chars
           // It may or may not throw depending on attribution
           const borderlineLength = MAX_TWEET_LENGTH - 10 - ATTRIBUTION_SUFFIX.length;
-          const borderlineTemplate = '{username}' + 'x'.repeat(borderlineLength);
+          const borderlineTemplate = `{username}${'x'.repeat(borderlineLength)}`;
 
           // Without attribution this fits, with attribution it may not
           // Just verify it doesn't crash
-          let hadError = false;
+          let _hadError = false;
           for (let i = 0; i < 50; i++) {
             try {
               const freshManager = new ReplyTemplateManager();
               freshManager.buildReplyText(borderlineTemplate, 'user');
             } catch {
-              hadError = true;
+              _hadError = true;
               break;
             }
           }

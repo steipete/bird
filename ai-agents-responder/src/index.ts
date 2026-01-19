@@ -10,21 +10,16 @@
  */
 
 import { loadConfig } from './config.js';
-import { logger } from './logger.js';
 import { initDatabase } from './database.js';
-import { Poller } from './poller.js';
 import { FilterPipeline } from './filter.js';
 import { Generator } from './generator.js';
+import { logger } from './logger.js';
+import { Poller } from './poller.js';
 import { Responder } from './responder.js';
-import { retry, RETRY_CONFIGS } from './utils/retry.js';
+import type { Config, CycleResult, Database, GeneratorResult, PollerResult, ReplyLogEntry } from './types.js';
 import { executeWithCircuitBreaker } from './utils/circuit-breaker.js';
-import {
-  isAuthError,
-  isDatabaseError,
-  isCriticalError,
-  classifyError,
-} from './utils/errors.js';
-import type { Config, Database, CycleResult, ReplyLogEntry } from './types.js';
+import { classifyError } from './utils/errors.js';
+import { RETRY_CONFIGS, retry } from './utils/retry.js';
 
 /**
  * Main orchestrator class
@@ -82,15 +77,12 @@ class Orchestrator {
 
     try {
       // Step 1: Search for tweets (with retry)
-      let searchResult;
+      let searchResult: PollerResult;
       try {
         searchResult = await retry(
-          () => this.poller.search(
-            this.config.polling.searchQuery,
-            this.config.polling.resultsPerQuery
-          ),
+          () => this.poller.search(this.config.polling.searchQuery, this.config.polling.resultsPerQuery),
           RETRY_CONFIGS.birdSearch,
-          'birdSearch'
+          'birdSearch',
         );
       } catch (error) {
         const duration = Date.now() - startTime;
@@ -153,7 +145,8 @@ class Orchestrator {
         const duration = Date.now() - startTime;
         logger.info('orchestrator', 'no_eligible_tweets', {
           total: filterResult.stats.total,
-          rejected: filterResult.stats.rejectedContent +
+          rejected:
+            filterResult.stats.rejectedContent +
             filterResult.stats.rejectedDuplicate +
             filterResult.stats.rejectedFollowers +
             filterResult.stats.rejectedRateLimit,
@@ -169,7 +162,7 @@ class Orchestrator {
       logger.info('orchestrator', 'eligible_tweet_found', {
         tweetId: eligible.id,
         author: eligible.authorUsername,
-        textPreview: eligible.text.substring(0, 100) + '...',
+        textPreview: `${eligible.text.substring(0, 100)}...`,
       });
 
       // Step 3: Generate PNG summary via Manus (with circuit breaker)
@@ -178,12 +171,12 @@ class Orchestrator {
       });
 
       // Check circuit breaker state and execute generation
-      let generateResult;
+      let generateResult: GeneratorResult | null;
       try {
-        generateResult = await executeWithCircuitBreaker(
-          () => this.generator.generate(eligible),
-          this.db!
-        );
+        if (!this.db) {
+          throw new Error('Database not initialized');
+        }
+        generateResult = await executeWithCircuitBreaker(() => this.generator.generate(eligible), this.db);
       } catch (error) {
         // Circuit breaker recorded the failure, now handle the error
         const duration = Date.now() - startTime;
@@ -233,12 +226,17 @@ class Orchestrator {
 
       if (!generateResult.success || !generateResult.png) {
         const duration = Date.now() - startTime;
-        logger.error('orchestrator', 'generation_failed', new Error(generateResult.error || 'Unknown generation error'), {
-          tweetId: eligible.id,
-          author: eligible.authorUsername,
-          manusTaskId: generateResult.manusTaskId,
-          durationMs: duration,
-        });
+        logger.error(
+          'orchestrator',
+          'generation_failed',
+          new Error(generateResult.error || 'Unknown generation error'),
+          {
+            tweetId: eligible.id,
+            author: eligible.authorUsername,
+            manusTaskId: generateResult.manusTaskId,
+            durationMs: duration,
+          },
+        );
 
         // Record failed attempt
         if (this.db) {
@@ -427,7 +425,9 @@ class Orchestrator {
     // Set up interval for subsequent cycles
     const intervalMs = this.config.polling.intervalSeconds * 1000;
     this.intervalId = setInterval(async () => {
-      if (!this.running) return;
+      if (!this.running) {
+        return;
+      }
 
       this.currentCyclePromise = this.runCycle();
       await this.currentCyclePromise;
@@ -454,7 +454,7 @@ class Orchestrator {
       logger.info('orchestrator', 'waiting_for_current_cycle', {});
 
       const timeoutMs = 5 * 60 * 1000; // 5 minutes
-      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
       await Promise.race([
         this.currentCyclePromise,

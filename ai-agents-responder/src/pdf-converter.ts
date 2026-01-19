@@ -31,10 +31,7 @@ export class PdfConverter {
    * @returns PNG as Uint8Array
    * @throws Error if conversion fails or output exceeds 5MB after compression
    */
-  async convertToPng(
-    pdf: Uint8Array,
-    options: Partial<ConversionOptions> = {}
-  ): Promise<Uint8Array> {
+  async convertToPng(pdf: Uint8Array, options: Partial<ConversionOptions> = {}): Promise<Uint8Array> {
     const opts = { ...DEFAULT_OPTIONS, ...options };
     const startTime = Date.now();
 
@@ -53,10 +50,7 @@ export class PdfConverter {
       // Convert PDF to PNG using pdf-to-png-converter
       // We only process the first page since Manus generates single-page PDFs
       // Use the underlying ArrayBuffer from the Uint8Array
-      const pdfArrayBuffer = pdf.buffer.slice(
-        pdf.byteOffset,
-        pdf.byteOffset + pdf.byteLength
-      ) as ArrayBuffer;
+      const pdfArrayBuffer = pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength) as ArrayBuffer;
 
       const pngPages = await pdfToPng(pdfArrayBuffer, {
         viewportScale,
@@ -73,7 +67,7 @@ export class PdfConverter {
       let pngBuffer: Uint8Array = new Uint8Array(
         contentBuffer.buffer,
         contentBuffer.byteOffset,
-        contentBuffer.byteLength
+        contentBuffer.byteLength,
       );
       const duration = Date.now() - startTime;
 
@@ -170,7 +164,7 @@ export class PdfConverter {
       const sizeMB = (png.length / (1024 * 1024)).toFixed(2);
       const error = new Error(
         `PNG size ${sizeMB}MB exceeds Twitter's 5MB limit. ` +
-          'Consider using a simpler PDF design or lower resolution.'
+          'Consider using a simpler PDF design or lower resolution.',
       );
       logger.error(this.component, 'size_validation_failed', error, {
         size: png.length,

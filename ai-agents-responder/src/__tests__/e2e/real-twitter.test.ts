@@ -11,14 +11,15 @@
  * If no credentials are available, tests are skipped gracefully.
  */
 
-import { describe, it, expect, beforeAll } from 'bun:test';
-import {
-  TwitterClient,
-  resolveCredentials,
-  type TweetData,
-  type SearchResult,
-} from '@steipete/bird';
+import { beforeAll, describe, expect, it } from 'bun:test';
+import { resolveCredentials, type SearchResult, type TweetData, TwitterClient } from '@steipete/bird';
 import type { TweetCandidate } from '../../types.js';
+
+// =============================================================================
+// Top-level constants
+// =============================================================================
+
+const CREDENTIAL_SOURCE_REGEX = /^(cookie|token|none)$/;
 
 // =============================================================================
 // Credential Detection
@@ -97,7 +98,7 @@ describe('E2E: Real Twitter Search', () => {
 
     try {
       if (credentials.source === 'cookie') {
-        const cookieSource = process.env.BIRD_COOKIE_SOURCE!;
+        const cookieSource = process.env.BIRD_COOKIE_SOURCE as 'safari' | 'chrome' | 'firefox';
         const result = await resolveCredentials({ cookieSource });
 
         if (!result.cookies.authToken || !result.cookies.ct0) {
@@ -110,8 +111,8 @@ describe('E2E: Real Twitter Search', () => {
       } else {
         client = new TwitterClient({
           cookies: {
-            authToken: process.env.AUTH_TOKEN!,
-            ct0: process.env.CT0!,
+            authToken: process.env.AUTH_TOKEN ?? '',
+            ct0: process.env.CT0 ?? '',
             cookieHeader: null,
             source: 'manual',
           },
@@ -143,11 +144,12 @@ describe('E2E: Real Twitter Search', () => {
       expect(result.tweets).toBeDefined();
       expect(Array.isArray(result.tweets)).toBe(true);
 
-      console.log(`[INFO] Search returned ${result.tweets.length} tweets`);
+      const tweets = result.tweets ?? [];
+      console.log(`[INFO] Search returned ${tweets.length} tweets`);
 
       // Verify we got some results (Twitter API may return fewer than requested)
       // Don't fail if 0 results - could be rate limited or no matching tweets
-      if (result.tweets.length === 0) {
+      if (tweets.length === 0) {
         console.log('[WARN] Search returned 0 results - may be rate limited or no matching tweets');
       }
     });
@@ -164,13 +166,14 @@ describe('E2E: Real Twitter Search', () => {
 
       expect(result.success).toBe(true);
 
-      if (result.tweets.length === 0) {
+      const tweets = result.tweets ?? [];
+      if (tweets.length === 0) {
         console.log('[WARN] No tweets to validate - skipping structure check');
         expect(true).toBe(true);
         return;
       }
 
-      const tweet = result.tweets[0];
+      const tweet = tweets[0];
 
       // Verify required TweetData fields exist
       expect(tweet.id).toBeDefined();
@@ -199,16 +202,17 @@ describe('E2E: Real Twitter Search', () => {
 
       expect(result.success).toBe(true);
 
-      if (result.tweets.length === 0) {
+      const tweets = result.tweets ?? [];
+      if (tweets.length === 0) {
         console.log('[WARN] No tweets to map - skipping mapping check');
         expect(true).toBe(true);
         return;
       }
 
       // Map all results to TweetCandidate
-      const candidates = result.tweets.map(mapTweetToCandidate);
+      const candidates = tweets.map(mapTweetToCandidate);
 
-      expect(candidates.length).toBe(result.tweets.length);
+      expect(candidates.length).toBe(tweets.length);
 
       for (const candidate of candidates) {
         // Verify TweetCandidate interface
@@ -249,16 +253,17 @@ describe('E2E: Real Twitter Search', () => {
 
       expect(result.success).toBe(true);
 
-      if (result.tweets.length === 0) {
+      const tweets = result.tweets ?? [];
+      if (tweets.length === 0) {
         console.log('[WARN] No tweets to check for retweets');
         expect(true).toBe(true);
         return;
       }
 
-      const candidates = result.tweets.map(mapTweetToCandidate);
+      const candidates = tweets.map(mapTweetToCandidate);
 
       // Count retweets (RT @ style)
-      const rtStyleRetweets = candidates.filter(c => c.isRetweet);
+      const rtStyleRetweets = candidates.filter((c) => c.isRetweet);
 
       // Most results should not be RT @ style retweets
       // (The query filter handles native retweets, not quote tweets or RT @ style)
@@ -303,7 +308,9 @@ describe('E2E: Real Twitter Search', () => {
         console.log(`[INFO] Empty query handled: success=${result.success}, tweets=${result.tweets?.length ?? 0}`);
       } catch (error) {
         // Error is acceptable for invalid query
-        console.log(`[INFO] Empty query threw error (acceptable): ${error instanceof Error ? error.message : String(error)}`);
+        console.log(
+          `[INFO] Empty query threw error (acceptable): ${error instanceof Error ? error.message : String(error)}`,
+        );
         expect(true).toBe(true);
       }
     });
@@ -320,7 +327,9 @@ describe('E2E: Real Twitter Search', () => {
         expect(result).toBeDefined();
         console.log(`[INFO] Zero count handled: success=${result.success}`);
       } catch (error) {
-        console.log(`[INFO] Zero count threw error (acceptable): ${error instanceof Error ? error.message : String(error)}`);
+        console.log(
+          `[INFO] Zero count threw error (acceptable): ${error instanceof Error ? error.message : String(error)}`,
+        );
         expect(true).toBe(true);
       }
     });
@@ -333,7 +342,7 @@ describe('E2E: Real Twitter Search', () => {
       console.log(`[INFO] Details: ${credentials.details}`);
 
       // This test always passes - it just reports status
-      expect(credentials.source).toMatch(/^(cookie|token|none)$/);
+      expect(credentials.source).toMatch(CREDENTIAL_SOURCE_REGEX);
     });
   });
 });

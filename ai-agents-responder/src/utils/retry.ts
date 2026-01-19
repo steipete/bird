@@ -68,7 +68,7 @@ export function calculateDelay(attempt: number, options: RetryOptions): number {
   switch (backoff) {
     case 'exponential':
       // delay = min(baseDelay * 2^attempt, maxDelay)
-      delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
+      delay = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
       break;
 
     case 'linear':
@@ -115,11 +115,7 @@ function sleep(ms: number): Promise<void> {
  * );
  * ```
  */
-export async function retry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions,
-  operationName?: string
-): Promise<T> {
+export async function retry<T>(operation: () => Promise<T>, options: RetryOptions, operationName?: string): Promise<T> {
   const { maxAttempts, backoff, baseDelayMs, maxDelayMs } = options;
   const name = operationName ?? 'operation';
 
@@ -184,8 +180,7 @@ export async function retry<T>(
  */
 export function createRetryWrapper(
   options: RetryOptions,
-  operationName: string
+  operationName: string,
 ): <T>(operation: () => Promise<T>) => Promise<T> {
-  return <T>(operation: () => Promise<T>) =>
-    retry(operation, options, operationName);
+  return <T>(operation: () => Promise<T>) => retry(operation, options, operationName);
 }

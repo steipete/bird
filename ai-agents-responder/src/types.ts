@@ -55,10 +55,7 @@ export interface FilterDecision {
   reason?: string;
 }
 
-export type FilterFn = (
-  tweet: TweetCandidate,
-  context: FilterContext
-) => Promise<FilterDecision>;
+export type FilterFn = (tweet: TweetCandidate, context: FilterContext) => Promise<FilterDecision>;
 
 // =============================================================================
 // Generator Interfaces
@@ -255,22 +252,9 @@ export interface ConfigValidationResult {
 // =============================================================================
 
 export interface Logger {
-  info(
-    component: string,
-    event: string,
-    metadata?: Record<string, unknown>
-  ): void;
-  warn(
-    component: string,
-    event: string,
-    metadata?: Record<string, unknown>
-  ): void;
-  error(
-    component: string,
-    event: string,
-    error: Error,
-    metadata?: Record<string, unknown>
-  ): void;
+  info(component: string, event: string, metadata?: Record<string, unknown>): void;
+  warn(component: string, event: string, metadata?: Record<string, unknown>): void;
+  error(component: string, event: string, error: Error, metadata?: Record<string, unknown>): void;
 }
 
 export interface LogEntry {

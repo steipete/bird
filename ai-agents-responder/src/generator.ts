@@ -3,10 +3,10 @@
  * Orchestrates Manus API for PDF creation and conversion to PNG
  */
 
-import type { TweetCandidate, GeneratorResult, PollOptions } from './types.js';
+import { logger } from './logger.js';
 import { ManusClient } from './manus-client.js';
 import { PdfConverter } from './pdf-converter.js';
-import { logger } from './logger.js';
+import type { GeneratorResult, PollOptions, TweetCandidate } from './types.js';
 
 const COMPONENT = 'generator';
 
@@ -68,11 +68,7 @@ export class Generator {
   private readonly pdfConverter: PdfConverter;
   private readonly pollOptions: PollOptions;
 
-  constructor(
-    manusClient?: ManusClient,
-    pdfConverter?: PdfConverter,
-    pollOptions?: PollOptions
-  ) {
+  constructor(manusClient?: ManusClient, pdfConverter?: PdfConverter, pollOptions?: PollOptions) {
     this.manusClient = manusClient || new ManusClient();
     this.pdfConverter = pdfConverter || new PdfConverter();
     this.pollOptions = pollOptions || DEFAULT_POLL_OPTIONS;

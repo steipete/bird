@@ -4,16 +4,16 @@
  */
 
 import { Database as BunDatabase } from 'bun:sqlite';
+import { logger } from './logger.js';
 import type {
-  Database,
-  RateLimitState,
+  AuthorCacheEntry,
   CircuitBreakerState,
   CircuitBreakerUpdate,
-  AuthorCacheEntry,
+  Database,
+  RateLimitState,
   ReplyLogEntry,
   SeedAuthor,
 } from './types.js';
-import { logger } from './logger.js';
 
 // Database singleton instance
 let dbInstance: BunDatabase | null = null;
@@ -156,11 +156,13 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async getRepliesForAuthorToday(authorId: string): Promise<number> {
-      const result = db.query(`
+      const result = db
+        .query(`
         SELECT COUNT(*) as count FROM replied_tweets
         WHERE author_id = ?
           AND replied_at > datetime('now', '-24 hours')
-      `).get(authorId) as { count: number } | null;
+      `)
+        .get(authorId) as { count: number } | null;
       return result?.count ?? 0;
     },
 
@@ -169,10 +171,12 @@ function createDatabaseInterface(db: BunDatabase): Database {
       // Reset daily count if past midnight UTC before reading state
       await this.resetDailyCountIfNeeded();
 
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT daily_count, last_reply_at, daily_reset_at
         FROM rate_limits WHERE id = 1
-      `).get() as {
+      `)
+        .get() as {
         daily_count: number;
         last_reply_at: string | null;
         daily_reset_at: string;
@@ -209,18 +213,17 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async updateLastReplyTime(timestamp: Date): Promise<void> {
-      db.run(
-        'UPDATE rate_limits SET last_reply_at = ? WHERE id = 1',
-        [timestamp.toISOString()]
-      );
+      db.run('UPDATE rate_limits SET last_reply_at = ? WHERE id = 1', [timestamp.toISOString()]);
     },
 
     // Circuit breaker methods
     async getCircuitBreakerState(): Promise<CircuitBreakerState> {
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT circuit_breaker_state, circuit_breaker_failures, circuit_breaker_opened_at
         FROM rate_limits WHERE id = 1
-      `).get() as {
+      `)
+        .get() as {
         circuit_breaker_state: string;
         circuit_breaker_failures: number;
         circuit_breaker_opened_at: string | null;
@@ -299,12 +302,14 @@ function createDatabaseInterface(db: BunDatabase): Database {
 
     // Author cache methods
     async getAuthorCache(authorId: string): Promise<AuthorCacheEntry | null> {
-      const row = db.query(`
+      const row = db
+        .query(`
         SELECT author_id, username, name, follower_count, following_count, is_verified, updated_at
         FROM author_cache
         WHERE author_id = ?
           AND updated_at > datetime('now', '-24 hours')
-      `).get(authorId) as {
+      `)
+        .get(authorId) as {
         author_id: string;
         username: string;
         name: string | null;
@@ -330,7 +335,8 @@ function createDatabaseInterface(db: BunDatabase): Database {
     },
 
     async upsertAuthorCache(author: AuthorCacheEntry): Promise<void> {
-      db.run(`
+      db.run(
+        `
         INSERT INTO author_cache (author_id, username, name, follower_count, following_count, is_verified, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(author_id) DO UPDATE SET
@@ -340,14 +346,16 @@ function createDatabaseInterface(db: BunDatabase): Database {
           following_count = excluded.following_count,
           is_verified = excluded.is_verified,
           updated_at = datetime('now')
-      `, [
-        author.authorId,
-        author.username,
-        author.name,
-        author.followerCount,
-        author.followingCount,
-        author.isVerified ? 1 : 0,
-      ]);
+      `,
+        [
+          author.authorId,
+          author.username,
+          author.name,
+          author.followerCount,
+          author.followingCount,
+          author.isVerified ? 1 : 0,
+        ],
+      );
     },
 
     async seedAuthorsFromJson(authors: SeedAuthor[]): Promise<void> {
@@ -370,7 +378,7 @@ function createDatabaseInterface(db: BunDatabase): Database {
           author.name,
           author.followerCount,
           author.followingCount ?? 0,
-          author.isVerified ? 1 : 0
+          author.isVerified ? 1 : 0,
         );
       }
 
@@ -379,27 +387,30 @@ function createDatabaseInterface(db: BunDatabase): Database {
 
     // Reply logging
     async recordReply(log: ReplyLogEntry): Promise<void> {
-      db.run(`
+      db.run(
+        `
         INSERT INTO replied_tweets (
           tweet_id, author_id, author_username, tweet_text, tweet_created_at,
           reply_tweet_id, success, error_message, manus_task_id,
           manus_duration_ms, png_size_bytes, reply_template_index
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        log.tweetId,
-        log.authorId,
-        log.authorUsername,
-        log.tweetText,
-        log.tweetCreatedAt.toISOString(),
-        log.replyTweetId,
-        log.success ? 1 : 0,
-        log.errorMessage ?? null,
-        log.manusTaskId ?? null,
-        log.manusDuration ?? null,
-        log.pngSize ?? null,
-        log.templateIndex ?? null,
-      ]);
+      `,
+        [
+          log.tweetId,
+          log.authorId,
+          log.authorUsername,
+          log.tweetText,
+          log.tweetCreatedAt.toISOString(),
+          log.replyTweetId,
+          log.success ? 1 : 0,
+          log.errorMessage ?? null,
+          log.manusTaskId ?? null,
+          log.manusDuration ?? null,
+          log.pngSize ?? null,
+          log.templateIndex ?? null,
+        ],
+      );
 
       logger.info('database', 'reply_recorded', {
         tweetId: log.tweetId,

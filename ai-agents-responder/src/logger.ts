@@ -2,7 +2,7 @@
  * Structured JSON logger for AI Agents Twitter Auto-Responder
  */
 
-import type { Logger, LogEntry } from './types.js';
+import type { LogEntry, Logger } from './types.js';
 
 /**
  * Log levels with their numeric priority (lower = more severe)
@@ -44,12 +44,10 @@ function writeLog(entry: LogEntry): void {
  */
 function createLogger(): Logger {
   return {
-    info(
-      component: string,
-      event: string,
-      metadata?: Record<string, unknown>
-    ): void {
-      if (!shouldLog('info')) return;
+    info(component: string, event: string, metadata?: Record<string, unknown>): void {
+      if (!shouldLog('info')) {
+        return;
+      }
 
       const entry: LogEntry = {
         timestamp: new Date().toISOString(),
@@ -65,12 +63,10 @@ function createLogger(): Logger {
       writeLog(entry);
     },
 
-    warn(
-      component: string,
-      event: string,
-      metadata?: Record<string, unknown>
-    ): void {
-      if (!shouldLog('warn')) return;
+    warn(component: string, event: string, metadata?: Record<string, unknown>): void {
+      if (!shouldLog('warn')) {
+        return;
+      }
 
       const entry: LogEntry = {
         timestamp: new Date().toISOString(),
@@ -86,13 +82,10 @@ function createLogger(): Logger {
       writeLog(entry);
     },
 
-    error(
-      component: string,
-      event: string,
-      error: Error,
-      metadata?: Record<string, unknown>
-    ): void {
-      if (!shouldLog('error')) return;
+    error(component: string, event: string, error: Error, metadata?: Record<string, unknown>): void {
+      if (!shouldLog('error')) {
+        return;
+      }
 
       const entry: LogEntry = {
         timestamp: new Date().toISOString(),

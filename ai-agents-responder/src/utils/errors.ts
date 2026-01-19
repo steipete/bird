@@ -9,7 +9,7 @@
 /**
  * HTTP status codes indicating authentication issues
  */
-const AUTH_STATUS_CODES = [401, 403];
+const _AUTH_STATUS_CODES = [401, 403];
 
 /**
  * Keywords indicating authentication errors
@@ -94,11 +94,17 @@ function extractErrorMessage(error: unknown): string {
   if (error && typeof error === 'object') {
     // Handle objects with message, error, or toString
     const obj = error as Record<string, unknown>;
-    if (typeof obj.message === 'string') return obj.message;
-    if (typeof obj.error === 'string') return obj.error;
+    if (typeof obj.message === 'string') {
+      return obj.message;
+    }
+    if (typeof obj.error === 'string') {
+      return obj.error;
+    }
     if (typeof obj.toString === 'function') {
       const str = obj.toString();
-      if (str !== '[object Object]') return str;
+      if (str !== '[object Object]') {
+        return str;
+      }
     }
   }
   return String(error);
@@ -184,10 +190,7 @@ export function classifyError(error: unknown): ErrorClassification {
  * @param component - Component name for logging context
  * @returns Result object with success: false and error details
  */
-export function createErrorResult<T>(
-  error: unknown,
-  component?: string
-): { success: false; error: string; data?: T } {
+export function createErrorResult<T>(error: unknown, component?: string): { success: false; error: string; data?: T } {
   const message = extractErrorMessage(error);
   const prefix = component ? `[${component}] ` : '';
   return {
@@ -205,7 +208,7 @@ export function createErrorResult<T>(
  */
 export async function wrapWithResult<T>(
   operation: () => Promise<T>,
-  component?: string
+  component?: string,
 ): Promise<{ success: true; data: T } | { success: false; error: string }> {
   try {
     const data = await operation();

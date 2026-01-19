@@ -3,15 +3,10 @@
  * Uploads PNG and posts reply to Twitter/X via Bird client
  */
 
-import {
-  TwitterClient,
-  resolveCredentials,
-  type TweetResult,
-  type UploadMediaResult,
-} from '@steipete/bird';
+import { resolveCredentials, type TweetResult, TwitterClient, type UploadMediaResult } from '@steipete/bird';
 import { loadConfig } from './config.js';
 import { logger } from './logger.js';
-import { ReplyTemplateManager, REPLY_TEMPLATES } from './reply-templates.js';
+import { REPLY_TEMPLATES, ReplyTemplateManager } from './reply-templates.js';
 import type { Config, ResponderResult, TweetCandidate } from './types.js';
 
 // =============================================================================
@@ -38,7 +33,9 @@ export class Responder {
    * Must be called before reply() in non-dry-run mode
    */
   async initialize(): Promise<void> {
-    if (this.initialized) return;
+    if (this.initialized) {
+      return;
+    }
 
     // In dry-run mode, client is not needed
     if (this.config.features.dryRun) {
@@ -62,7 +59,7 @@ export class Responder {
       this.client = new TwitterClient(credentials);
     } else if (this.config.bird.authToken && this.config.bird.ct0) {
       logger.info('responder', 'initializing_from_tokens', {
-        authTokenPrefix: this.config.bird.authToken.substring(0, 10) + '...',
+        authTokenPrefix: `${this.config.bird.authToken.substring(0, 10)}...`,
       });
 
       this.client = new TwitterClient({
@@ -70,9 +67,7 @@ export class Responder {
         ct0: this.config.bird.ct0,
       });
     } else {
-      throw new Error(
-        'Invalid bird configuration: must provide either cookieSource or manual tokens'
-      );
+      throw new Error('Invalid bird configuration: must provide either cookieSource or manual tokens');
     }
 
     this.initialized = true;
@@ -104,10 +99,7 @@ export class Responder {
     // Select template and build reply text
     const template = this.templateManager.selectTemplate();
     const templateIndex = REPLY_TEMPLATES.indexOf(template);
-    const replyText = this.templateManager.buildReplyText(
-      template,
-      tweet.authorUsername
-    );
+    const replyText = this.templateManager.buildReplyText(template, tweet.authorUsername);
 
     // Handle dry-run mode
     if (this.config.features.dryRun) {
@@ -173,11 +165,7 @@ export class Responder {
         templateIndex,
       });
 
-      const replyResult: TweetResult = await this.client.reply(
-        replyText,
-        tweet.id,
-        [uploadResult.mediaId]
-      );
+      const replyResult: TweetResult = await this.client.reply(replyText, tweet.id, [uploadResult.mediaId]);
 
       if (!replyResult.success) {
         logger.error('responder', 'reply_failed', new Error(replyResult.error), {

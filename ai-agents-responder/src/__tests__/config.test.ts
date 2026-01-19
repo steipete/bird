@@ -3,8 +3,8 @@
  * Tests all validation rules, error messages, and secret masking
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { validateConfig, maskSecrets } from '../config.js';
+import { describe, expect, it } from 'vitest';
+import { maskSecrets, validateConfig } from '../config.js';
 import type { Config } from '../types.js';
 
 /**
@@ -51,7 +51,10 @@ function createValidConfig(overrides: Partial<Config> = {}): Config {
   };
 
   // Deep merge overrides
-  return deepMerge(baseConfig as unknown as Record<string, unknown>, overrides as unknown as Record<string, unknown>) as unknown as Config;
+  return deepMerge(
+    baseConfig as unknown as Record<string, unknown>,
+    overrides as unknown as Record<string, unknown>,
+  ) as unknown as Config;
 }
 
 /**
@@ -61,10 +64,7 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
   const result = { ...target };
   for (const key of Object.keys(source)) {
     if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-      result[key] = deepMerge(
-        (target[key] as Record<string, unknown>) || {},
-        source[key] as Record<string, unknown>
-      );
+      result[key] = deepMerge((target[key] as Record<string, unknown>) || {}, source[key] as Record<string, unknown>);
     } else {
       result[key] = source[key];
     }
@@ -225,7 +225,7 @@ describe('Config Validation', () => {
       const result = validateConfig(config);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain(
-        'Impossible rate limits: 100 replies * 15 min gap = 1500 minutes > 1440 minutes (24 hours)'
+        'Impossible rate limits: 100 replies * 15 min gap = 1500 minutes > 1440 minutes (24 hours)',
       );
     });
 
