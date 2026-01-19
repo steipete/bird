@@ -1251,7 +1251,7 @@ cd ai-agents-responder && bun test && bun run tsc --noEmit
 
 ---
 
-### Task 3.4: Unit tests - reply templates
+### Task 3.4: Unit tests - reply templates [x]
 
 **Do**:
 1. Create `src/__tests__/reply-templates.test.ts`:
