@@ -34,6 +34,7 @@ export const KNOWN_COMMANDS = new Set([
   'likes',
   'lists',
   'list-timeline',
+  'list-members',
   'home',
   'user-tweets',
   'news',
