@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { filterFullChain } from '../src/lib/thread-filters.js';
 import type { TweetData } from '../src/lib/twitter-client-types.js';
 
-const makeTweet = (
-  id: string,
-  createdAt: string,
-  inReplyToStatusId?: string,
-  conversationId = '1',
-): TweetData => ({
+const makeTweet = (id: string, createdAt: string, inReplyToStatusId?: string, conversationId = '1'): TweetData => ({
   id,
   text: id,
   author: { username: 'alice', name: 'Alice' },

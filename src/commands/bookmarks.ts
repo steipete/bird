@@ -2,12 +2,7 @@ import type { Command } from 'commander';
 import { parsePaginationFlags } from '../cli/pagination.js';
 import type { CliContext } from '../cli/shared.js';
 import { extractBookmarkFolderId } from '../lib/extract-bookmark-folder-id.js';
-import {
-  addThreadMetadata,
-  filterAuthorChain,
-  filterAuthorOnly,
-  filterFullChain,
-} from '../lib/thread-filters.js';
+import { addThreadMetadata, filterAuthorChain, filterAuthorOnly, filterFullChain } from '../lib/thread-filters.js';
 import { TwitterClient } from '../lib/twitter-client.js';
 import type { TweetData, TweetWithMeta } from '../lib/twitter-client-types.js';
 
