@@ -974,7 +974,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 ---
 
-### Task 2.7: Main orchestrator - integrate retry and circuit breaker
+### Task 2.7: Main orchestrator - integrate retry and circuit breaker [x]
 
 **Do**:
 1. Update `src/index.ts`:
