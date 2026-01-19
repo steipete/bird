@@ -664,7 +664,7 @@ _Design: Data Flow, Error Recovery Flow_
 
 ---
 
-### Task 1.21: Seed authors data - known influencer list
+### Task 1.21: Seed authors data - known influencer list [x]
 
 **Do**:
 1. Create `data/seed-authors.json` with 12 AI influencers:
