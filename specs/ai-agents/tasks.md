@@ -1412,7 +1412,7 @@ _Design: ManusClient_
 
 ---
 
-### Task 3.9: [VERIFY] Quality checkpoint
+### Task 3.9: [VERIFY] Quality checkpoint [x]
 
 **Do**: Run all integration tests
 
