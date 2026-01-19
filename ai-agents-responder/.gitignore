@@ -1,0 +1,35 @@
+# Environment variables - never commit credentials
+.env
+.env.local
+.env.*.local
+
+# Database files - contain runtime state
+data/*.db
+data/*.db-wal
+data/*.db-shm
+*.db
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Test artifacts
+coverage/
+.vitest/
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug logs
+*.log
+npm-debug.log*
