@@ -1,7 +1,7 @@
 /**
  * Filter pipeline for AI Agents Twitter Auto-Responder
- * Multi-stage validation: content -> deduplication -> followers
- * Phase 2: Added follower count check with caching
+ * Multi-stage validation: content -> deduplication -> followers -> rate limits
+ * Phase 2: Added follower count check with caching, rate limit enforcement
  */
 
 import {
@@ -15,6 +15,7 @@ import type {
   Database,
   AuthorCacheEntry,
   Config,
+  RateLimitState,
 } from './types.js';
 import { initDatabase } from './database.js';
 import { loadConfig } from './config.js';
@@ -459,6 +460,106 @@ export class FilterPipeline {
   }
 
   /**
+   * Stage 4: Rate limit check
+   * - Check daily count < maxDailyReplies
+   * - Check gap since last reply >= minGapMinutes
+   * - Check replies to this author today < maxPerAuthorPerDay
+   */
+  private async passesRateLimitCheck(
+    tweet: TweetCandidate,
+    stats: FilterStats
+  ): Promise<boolean> {
+    if (!this.db || !this.config) {
+      await this.initialize();
+    }
+
+    const rateLimits = this.config!.rateLimits;
+
+    // Reset daily count if needed (past midnight UTC)
+    await this.db!.resetDailyCountIfNeeded();
+
+    // Get current rate limit state
+    const state = await this.db!.getRateLimitState();
+
+    // Check daily count limit
+    if (state.dailyCount >= rateLimits.maxDailyReplies) {
+      recordRejection(stats, 'rateLimit', 'daily_limit_exceeded');
+      logger.info('filter', 'rate_limit_exceeded', {
+        reason: 'daily_limit',
+        dailyCount: state.dailyCount,
+        maxDailyReplies: rateLimits.maxDailyReplies,
+      });
+      return false;
+    }
+
+    // Check gap since last reply
+    if (state.lastReplyAt) {
+      const gapMinutes = (Date.now() - state.lastReplyAt.getTime()) / (1000 * 60);
+      if (gapMinutes < rateLimits.minGapMinutes) {
+        recordRejection(stats, 'rateLimit', 'gap_too_short');
+        logger.info('filter', 'rate_limit_exceeded', {
+          reason: 'gap_too_short',
+          gapMinutes: Math.round(gapMinutes * 10) / 10,
+          minGapMinutes: rateLimits.minGapMinutes,
+          lastReplyAt: state.lastReplyAt.toISOString(),
+        });
+        return false;
+      }
+    }
+
+    // Check per-author daily limit
+    const authorReplies = await this.db!.getRepliesForAuthorToday(tweet.authorId);
+    if (authorReplies >= rateLimits.maxPerAuthorPerDay) {
+      recordRejection(stats, 'rateLimit', 'author_daily_limit');
+      logger.info('filter', 'rate_limit_exceeded', {
+        reason: 'author_daily_limit',
+        authorId: tweet.authorId,
+        authorUsername: tweet.authorUsername,
+        authorReplies,
+        maxPerAuthorPerDay: rateLimits.maxPerAuthorPerDay,
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Log rate limit status at the start of each cycle
+   */
+  private async logRateLimitStatus(): Promise<void> {
+    if (!this.db || !this.config) {
+      await this.initialize();
+    }
+
+    // Reset daily count if needed before logging
+    await this.db!.resetDailyCountIfNeeded();
+
+    const state = await this.db!.getRateLimitState();
+    const rateLimits = this.config!.rateLimits;
+
+    let gapMinutes: number | null = null;
+    let minutesUntilNextReply: number | null = null;
+
+    if (state.lastReplyAt) {
+      gapMinutes = Math.round((Date.now() - state.lastReplyAt.getTime()) / (1000 * 60) * 10) / 10;
+      const remaining = rateLimits.minGapMinutes - gapMinutes;
+      minutesUntilNextReply = remaining > 0 ? Math.round(remaining * 10) / 10 : 0;
+    }
+
+    logger.info('filter', 'rate_limit_status', {
+      dailyCount: state.dailyCount,
+      maxDailyReplies: rateLimits.maxDailyReplies,
+      dailyRemaining: rateLimits.maxDailyReplies - state.dailyCount,
+      lastReplyAt: state.lastReplyAt?.toISOString() ?? null,
+      gapMinutes,
+      minGapMinutes: rateLimits.minGapMinutes,
+      minutesUntilNextReply,
+      dailyResetAt: state.dailyResetAt.toISOString(),
+    });
+  }
+
+  /**
    * Filter candidates through all stages
    * Returns first eligible tweet or null
    */
@@ -471,6 +572,9 @@ export class FilterPipeline {
     // Reset cache tracking for this cycle
     this.cacheHits = 0;
     this.cacheMisses = 0;
+
+    // Log rate limit status at start of each cycle
+    await this.logRateLimitStatus();
 
     const stats = createFilterStats(candidates.length);
     let eligible: TweetCandidate | null = null;
@@ -491,7 +595,10 @@ export class FilterPipeline {
         continue;
       }
 
-      // POC: Skip Stage 4 (rate limits) - added in next task
+      // Stage 4: Rate limit check
+      if (!(await this.passesRateLimitCheck(tweet, stats))) {
+        continue;
+      }
 
       // Found an eligible tweet
       eligible = tweet;
