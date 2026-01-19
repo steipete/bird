@@ -1325,7 +1325,7 @@ _Design: Database component_
 
 ---
 
-### Task 3.6: [VERIFY] Quality checkpoint
+### Task 3.6: [VERIFY] Quality checkpoint [x]
 
 **Do**: Run all unit tests
 
