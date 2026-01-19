@@ -1504,7 +1504,7 @@ _Design: Poller component_
 
 ---
 
-### Task 3.12: [VERIFY] Quality checkpoint
+### Task 3.12: [VERIFY] Quality checkpoint [x]
 
 **Do**: Run complete test suite
 
