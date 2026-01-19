@@ -21,6 +21,7 @@
 - `list-timeline` now supports pagination (`--all`, `--max-pages`, `--cursor`) (#30) — thanks @zheli.
 - Rich text output now shows article previews, quoted tweets, and media links (#32) — thanks @odysseus0.
 - Long-form article tweets now render rich Draft.js content blocks/entities (#36) — thanks @crcatala.
+- Twitter client now supports like/unlike/retweet/unretweet/bookmark via the engagement mixin (#53) — thanks @the-vampiire.
 
 ### Changed
 - Library typing: `SearchResult` is now a discriminated union (so `error` only exists when `success: false`).
@@ -38,6 +39,7 @@
 
 ### Tests
 - Following: split following/likes tests + cover cursor handling (#33) — thanks @VACInc.
+- Live tests now exercise engagement mutations (opt-in) (#53) — thanks @the-vampiire.
 
 ## 0.6.0 — 2026-01-05
 

@@ -124,7 +124,7 @@ describe('TwitterClient engagement', () => {
   });
 
   describe('unretweet', () => {
-    it('successfully unrets a tweet', async () => {
+    it('successfully unretweets a tweet', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -140,6 +140,9 @@ describe('TwitterClient engagement', () => {
       const [url, options] = mockFetch.mock.calls[0];
       expect(options.method).toBe('POST');
       expect(String(url)).toContain('/DeleteRetweet');
+      const body = JSON.parse(options.body);
+      expect(body.variables.tweet_id).toBe('1234567890');
+      expect(body.variables.source_tweet_id).toBe('1234567890');
     });
   });
 

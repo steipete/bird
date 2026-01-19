@@ -28,7 +28,9 @@ export function withEngagement<TBase extends AbstractConstructor<TwitterClientBa
       operationName: OperationName,
       tweetId: string,
     ): Promise<BookmarkMutationResult> {
-      const variables = { tweet_id: tweetId };
+      await this.ensureClientUserId();
+      const variables =
+        operationName === 'DeleteRetweet' ? { tweet_id: tweetId, source_tweet_id: tweetId } : { tweet_id: tweetId };
       let queryId = await this.getQueryId(operationName);
       let urlWithOperation = `${TWITTER_API_BASE}/${queryId}/${operationName}`;
 

@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { resolveCredentials } from '../../src/lib/cookies.js';
+import { TwitterClient } from '../../src/lib/twitter-client.js';
 
 type RunResult = { exitCode: number; stdout: string; stderr: string; signal: NodeJS.Signals | null };
 
@@ -444,5 +446,63 @@ d('live CLI (Twitter/X) all commands', () => {
     expect(queryIds.exitCode).toBe(0);
     const snapshot = parseJson<{ cached?: boolean; ids?: Record<string, string> }>(queryIds.stdout);
     expect(typeof snapshot.cached).toBe('boolean');
+  });
+
+  it('engagement mutations work (opt-in)', async () => {
+    const engagementTweetId = (process.env.BIRD_LIVE_ENGAGEMENT_TWEET_ID ?? '').trim();
+    if (!engagementTweetId) {
+      return;
+    }
+    if (!TWEET_ID_REGEX.test(engagementTweetId)) {
+      throw new Error(`Invalid BIRD_LIVE_ENGAGEMENT_TWEET_ID (expected digits): "${engagementTweetId}"`);
+    }
+
+    const cookieTimeoutMs = Number.parseInt(cookieTimeoutArg, 10);
+    const { cookies, warnings } = await resolveCredentials({
+      authToken,
+      ct0,
+      cookieTimeoutMs: Number.isFinite(cookieTimeoutMs) ? cookieTimeoutMs : undefined,
+    });
+    for (const warning of warnings) {
+      console.error(`${warning}`);
+    }
+    if (!cookies.authToken || !cookies.ct0) {
+      throw new Error('Missing live credentials for engagement test.');
+    }
+
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = LIVE_NODE_ENV;
+    try {
+      const timeoutMs = Number.parseInt(timeoutArg, 10);
+      const client = new TwitterClient({
+        cookies,
+        timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : undefined,
+      });
+
+      // Cleanup (best-effort) to make the mutation sequence deterministic.
+      await client.unbookmark(engagementTweetId);
+      await client.unlike(engagementTweetId);
+      await client.unretweet(engagementTweetId);
+
+      const like = await client.like(engagementTweetId);
+      expect(like.success).toBe(true);
+      const retweet = await client.retweet(engagementTweetId);
+      expect(retweet.success).toBe(true);
+      const bookmark = await client.bookmark(engagementTweetId);
+      expect(bookmark.success).toBe(true);
+
+      const unbookmark = await client.unbookmark(engagementTweetId);
+      expect(unbookmark.success).toBe(true);
+      const unlike = await client.unlike(engagementTweetId);
+      expect(unlike.success).toBe(true);
+      const unretweet = await client.unretweet(engagementTweetId);
+      expect(unretweet.success).toBe(true);
+    } finally {
+      if (originalNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+    }
   });
 });
