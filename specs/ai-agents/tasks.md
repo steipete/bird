@@ -1108,7 +1108,7 @@ _Design: Graceful Shutdown Design (design.md), shutdown() implementation_
 
 ---
 
-### Task 2.11: Daily reset - rate limit counter
+### Task 2.11: Daily reset - rate limit counter [x]
 
 **Do**:
 1. Update `src/database.ts`:

@@ -166,6 +166,9 @@ function createDatabaseInterface(db: BunDatabase): Database {
 
     // Rate limit methods
     async getRateLimitState(): Promise<RateLimitState> {
+      // Reset daily count if past midnight UTC before reading state
+      await this.resetDailyCountIfNeeded();
+
       const row = db.query(`
         SELECT daily_count, last_reply_at, daily_reset_at
         FROM rate_limits WHERE id = 1
