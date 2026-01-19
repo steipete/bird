@@ -1050,7 +1050,7 @@ _Design: Error Handling Strategy_
 
 ---
 
-### Task 2.9: [VERIFY] Quality checkpoint
+### Task 2.9: [VERIFY] Quality checkpoint [x]
 
 **Do**: Type check error handling
 
