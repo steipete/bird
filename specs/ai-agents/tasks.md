@@ -570,7 +570,7 @@ _Design: Responder component_
 
 ---
 
-### Task 1.18: Main orchestrator - poll loop skeleton
+### Task 1.18: Main orchestrator - poll loop skeleton [x]
 
 **Do**:
 1. Create `src/index.ts`:
