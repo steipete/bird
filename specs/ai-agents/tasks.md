@@ -1558,7 +1558,7 @@ _Design: Existing Patterns - Code Style_
 
 ---
 
-### Task 4.2: Type checking - strict mode validation
+### Task 4.2: Type checking - strict mode validation [x]
 
 **Do**:
 1. Ensure tsconfig.json has strict: true
