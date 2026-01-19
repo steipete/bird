@@ -1287,7 +1287,7 @@ _Design: ReplyTemplateManager_
 
 ---
 
-### Task 3.5: Unit tests - database operations
+### Task 3.5: Unit tests - database operations [x]
 
 **Do**:
 1. Create `src/__tests__/database.test.ts`:
