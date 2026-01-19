@@ -133,7 +133,7 @@ function createMockConfig(overrides: Partial<Config> = {}): Config {
   };
 
   // Deep merge overrides
-  return deepMerge(baseConfig, overrides) as Config;
+  return deepMerge(baseConfig as unknown as Record<string, unknown>, overrides as unknown as Record<string, unknown>) as unknown as Config;
 }
 
 /**
