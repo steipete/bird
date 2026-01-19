@@ -65,7 +65,7 @@ _Design: File Structure, Technical Decisions_
 
 ---
 
-### Task 1.2: TypeScript types - core interfaces
+### Task 1.2: TypeScript types - core interfaces [x]
 
 **Do**:
 1. Create `src/types.ts` with interfaces:
