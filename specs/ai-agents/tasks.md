@@ -1142,7 +1142,7 @@ _Design: Database Operations_
 
 ---
 
-### Task 2.12: [VERIFY] Quality checkpoint
+### Task 2.12: [VERIFY] Quality checkpoint [x]
 
 **Do**: Type check refactored code
 
