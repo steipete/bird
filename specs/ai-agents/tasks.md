@@ -1607,7 +1607,7 @@ cd ai-agents-responder && bun run lint && bun run check-types && bun test
 
 ---
 
-### Task 4.4: README - setup and usage documentation
+### Task 4.4: README - setup and usage documentation [x]
 
 **Do**:
 1. Create `ai-agents-responder/README.md`:
