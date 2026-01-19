@@ -157,7 +157,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 ---
 
-### Task 1.5: Logger - structured JSON output
+### Task 1.5: Logger - structured JSON output [x]
 
 **Do**:
 1. Create `src/logger.ts`:
