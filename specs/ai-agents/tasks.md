@@ -1340,7 +1340,7 @@ cd ai-agents-responder && bun test
 
 ---
 
-### Task 3.7: Integration tests - database + filter
+### Task 3.7: Integration tests - database + filter [x]
 
 **Do**:
 1. Create `src/__tests__/integration/filter-db.test.ts`:
