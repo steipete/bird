@@ -821,7 +821,7 @@ _Design: Filter Pipeline Stage 3_
 
 ---
 
-### Task 2.2: Filter pipeline - add rate limit stage
+### Task 2.2: Filter pipeline - add rate limit stage [x]
 
 **Do**:
 1. Update `src/filter.ts`:
