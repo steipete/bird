@@ -1161,7 +1161,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 Add comprehensive test coverage (unit, integration, E2E per user request).
 
-### Task 3.1: Unit tests - config validation
+### Task 3.1: Unit tests - config validation [x]
 
 **Do**:
 1. Create `src/__tests__/config.test.ts`:
