@@ -429,7 +429,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 ---
 
-### Task 1.14: Generator - orchestrate Manus + PDF conversion
+### Task 1.14: Generator - orchestrate Manus + PDF conversion [x]
 
 **Do**:
 1. Create `src/generator.ts`:
