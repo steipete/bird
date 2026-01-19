@@ -3,9 +3,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['src/__tests__/**/*.test.ts'],
-    // Exclude database tests - they use bun:sqlite which requires Bun runtime
-    // Run these separately with: bun test src/__tests__/database.test.ts
-    exclude: ['src/__tests__/database.test.ts'],
+    // Exclude database and integration tests - they use bun:sqlite/bun:test which requires Bun runtime
+    // Run these separately with: bun test src/__tests__/database.test.ts src/__tests__/integration/
+    exclude: ['src/__tests__/database.test.ts', 'src/__tests__/integration/**/*.test.ts'],
     globals: false,
     environment: 'node',
   },

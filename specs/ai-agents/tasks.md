@@ -1376,7 +1376,7 @@ _Design: Filter Pipeline + Database_
 
 ---
 
-### Task 3.8: Integration tests - Manus client (if API key available)
+### Task 3.8: Integration tests - Manus client (if API key available) [x]
 
 **Do**:
 1. Create `src/__tests__/integration/manus.test.ts`:
