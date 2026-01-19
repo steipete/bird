@@ -288,7 +288,7 @@ _Design: Poller component_
 
 ---
 
-### Task 1.9: Filter pipeline - content and deduplication
+### Task 1.9: Filter pipeline - content and deduplication [x]
 
 **Do**:
 1. Create `src/filter.ts`:
