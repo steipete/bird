@@ -785,7 +785,7 @@ cd ai-agents-responder && bash scripts/e2e-test.sh && cat data/responder.db | sq
 
 After POC validated, clean up code structure and add robustness.
 
-### Task 2.1: Filter pipeline - add follower count stage
+### Task 2.1: Filter pipeline - add follower count stage [x]
 
 **Do**:
 1. Update `src/filter.ts`:
