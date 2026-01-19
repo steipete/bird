@@ -6,7 +6,7 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun run --watch src/index.ts",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
     "lint": "biome check src/",
     "format": "biome format --write src/",
     "seed-db": "bun run scripts/seed-db.ts"

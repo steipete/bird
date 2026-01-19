@@ -1197,7 +1197,7 @@ _Design: Config Manager_
 
 ---
 
-### Task 3.2: Unit tests - filter pipeline
+### Task 3.2: Unit tests - filter pipeline [x]
 
 **Do**:
 1. Create `src/__tests__/filter.test.ts`:
