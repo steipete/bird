@@ -191,7 +191,7 @@ _Design: Logger component_
 
 ---
 
-### Task 1.6: Database schema - SQLite initialization
+### Task 1.6: Database schema - SQLite initialization [x]
 
 **Do**:
 1. Create `src/database.ts`:
