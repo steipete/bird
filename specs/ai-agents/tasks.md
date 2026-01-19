@@ -872,7 +872,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 ---
 
-### Task 2.4: Retry utility - exponential backoff
+### Task 2.4: Retry utility - exponential backoff [x]
 
 **Do**:
 1. Create `src/utils/retry.ts`:
