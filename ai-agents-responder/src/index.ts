@@ -16,6 +16,8 @@ import { Poller } from './poller.js';
 import { FilterPipeline } from './filter.js';
 import { Generator } from './generator.js';
 import { Responder } from './responder.js';
+import { retry, RETRY_CONFIGS } from './utils/retry.js';
+import { executeWithCircuitBreaker } from './utils/circuit-breaker.js';
 import type { Config, Database, CycleResult, ReplyLogEntry } from './types.js';
 
 /**
@@ -73,11 +75,30 @@ class Orchestrator {
     });
 
     try {
-      // Step 1: Search for tweets
-      const searchResult = await this.poller.search(
-        this.config.polling.searchQuery,
-        this.config.polling.resultsPerQuery
-      );
+      // Step 1: Search for tweets (with retry)
+      let searchResult;
+      try {
+        searchResult = await retry(
+          () => this.poller.search(
+            this.config.polling.searchQuery,
+            this.config.polling.resultsPerQuery
+          ),
+          RETRY_CONFIGS.birdSearch,
+          'birdSearch'
+        );
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.warn('orchestrator', 'search_failed', {
+          error: errorMessage,
+          durationMs: duration,
+        });
+        return {
+          status: 'error',
+          duration,
+          error: errorMessage,
+        };
+      }
 
       if (!searchResult.success) {
         const duration = Date.now() - startTime;
@@ -122,12 +143,64 @@ class Orchestrator {
         textPreview: eligible.text.substring(0, 100) + '...',
       });
 
-      // Step 3: Generate PNG summary via Manus
+      // Step 3: Generate PNG summary via Manus (with circuit breaker)
       logger.info('orchestrator', 'generating_summary', {
         tweetId: eligible.id,
       });
 
-      const generateResult = await this.generator.generate(eligible);
+      // Check circuit breaker state and execute generation
+      let generateResult;
+      try {
+        generateResult = await executeWithCircuitBreaker(
+          () => this.generator.generate(eligible),
+          this.db!
+        );
+      } catch (error) {
+        // Circuit breaker recorded the failure, now handle the error
+        const duration = Date.now() - startTime;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('orchestrator', 'generation_failed', error as Error, {
+          tweetId: eligible.id,
+          author: eligible.authorUsername,
+          durationMs: duration,
+        });
+
+        // Record failed attempt
+        if (this.db) {
+          const logEntry: ReplyLogEntry = {
+            tweetId: eligible.id,
+            authorId: eligible.authorId,
+            authorUsername: eligible.authorUsername,
+            tweetText: eligible.text,
+            tweetCreatedAt: eligible.createdAt,
+            replyTweetId: null,
+            success: false,
+            errorMessage: `Generation failed: ${errorMessage}`,
+          };
+          await this.db.recordReply(logEntry);
+        }
+
+        return {
+          status: 'error',
+          duration,
+          error: `Generation failed: ${errorMessage}`,
+        };
+      }
+
+      // Circuit breaker is open - skip this cycle
+      if (generateResult === null) {
+        const duration = Date.now() - startTime;
+        logger.warn('orchestrator', 'circuit_breaker_open', {
+          tweetId: eligible.id,
+          author: eligible.authorUsername,
+          durationMs: duration,
+        });
+        return {
+          status: 'error',
+          duration,
+          error: 'Circuit breaker open - Manus API temporarily unavailable',
+        };
+      }
 
       if (!generateResult.success || !generateResult.png) {
         const duration = Date.now() - startTime;
