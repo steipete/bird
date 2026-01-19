@@ -1236,7 +1236,7 @@ _Design: Filter Pipeline_
 
 ---
 
-### Task 3.3: [VERIFY] Quality checkpoint
+### Task 3.3: [VERIFY] Quality checkpoint [x]
 
 **Do**: Run all tests and type check
 
