@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.1 — 2026-01-19
+
+### Added
+- `bookmarks` thread expansion controls (`--expand-root-only`, `--author-chain`, `--author-only`, `--full-chain-only`, `--include-ancestor-branches`, `--include-parent`, `--thread-meta`, `--sort-chronological`) for richer context exports (#55) — thanks @kkretschmer2.
+
+### Fixed
+- `bookmarks` expanded JSON now preserves pagination `nextCursor`, and full-chain filtering only includes ancestor branches when requested.
+
 ## 0.7.0 — 2026-01-12
 
 ### Added

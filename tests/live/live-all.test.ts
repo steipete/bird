@@ -269,6 +269,28 @@ d('live CLI (Twitter/X) all commands', () => {
     expect(Array.isArray(bookmarkTweets)).toBe(true);
   });
 
+  it('bookmarks full-chain-only with ancestor branches returns JSON array', async () => {
+    const bookmarks = await runBird(
+      [
+        ...baseArgs,
+        '--cookie-timeout',
+        cookieTimeoutArg,
+        'bookmarks',
+        '-n',
+        '1',
+        '--full-chain-only',
+        '--include-ancestor-branches',
+        '--json',
+      ],
+      {
+        timeoutMs: 45_000,
+      },
+    );
+    expect(bookmarks.exitCode).toBe(0);
+    const bookmarkTweets = parseJson<Array<{ id?: string }>>(bookmarks.stdout);
+    expect(Array.isArray(bookmarkTweets)).toBe(true);
+  });
+
   it('likes returns JSON array', async () => {
     const likes = await runBird([...baseArgs, '--cookie-timeout', cookieTimeoutArg, 'likes', '-n', '10', '--json'], {
       timeoutMs: 45_000,

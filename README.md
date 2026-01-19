@@ -161,7 +161,7 @@ const sportsNews = await client.getNews(10, {
 - `bird search "<query>" [-n count] [--all] [--max-pages n] [--cursor string] [--json]` — search for tweets matching a query; `--max-pages` requires `--all` or `--cursor`.
 - `bird mentions [-n count] [--user @handle] [--json]` — find tweets mentioning a user (defaults to the authenticated user).
 - `bird user-tweets <@handle> [-n count] [--cursor string] [--max-pages n] [--delay ms] [--json]` — get tweets from a user's profile timeline.
-- `bird bookmarks [-n count] [--folder-id id] [--all] [--max-pages n] [--cursor string] [--expand-root-only] [--author-chain] [--author-only] [--full-chain-only] [--include-parent] [--thread-meta] [--sort-chronological] [--json]` — list your bookmarked tweets (or a specific bookmark folder); expansion flags control thread context; `--max-pages` requires `--all` or `--cursor`.
+- `bird bookmarks [-n count] [--folder-id id] [--all] [--max-pages n] [--cursor string] [--expand-root-only] [--author-chain] [--author-only] [--full-chain-only] [--include-ancestor-branches] [--include-parent] [--thread-meta] [--sort-chronological] [--json]` — list your bookmarked tweets (or a specific bookmark folder); expansion flags control thread context; `--max-pages` requires `--all` or `--cursor`.
 - `bird unbookmark <tweet-id-or-url...>` — remove one or more bookmarks by tweet ID or URL.
 - `bird likes [-n count] [--all] [--max-pages n] [--cursor string] [--json] [--json-full]` — list your liked tweets; `--max-pages` requires `--all` or `--cursor`.
 - `bird news [-n count] [--ai-only] [--with-tweets] [--tweets-per-item n] [--for-you] [--news-only] [--sports] [--entertainment] [--trending-only] [--json]` — fetch news and trending topics from X's Explore tabs.
@@ -178,6 +178,7 @@ Bookmarks flags:
 - `--author-chain`: keep only the bookmarked author's connected self-reply chain.
 - `--author-only`: include all tweets from the bookmarked author within the thread.
 - `--full-chain-only`: keep the entire reply chain connected to the bookmarked tweet (all authors).
+- `--include-ancestor-branches`: include sibling branches for ancestors when using `--full-chain-only`.
 - `--include-parent`: include the direct parent tweet for non-root bookmarks.
 - `--thread-meta`: add thread metadata fields to each tweet.
 - `--sort-chronological`: sort output globally oldest to newest (default preserves bookmark order).

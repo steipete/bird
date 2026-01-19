@@ -24,6 +24,7 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
     .option('--author-chain', 'Only include author self-reply chains connected to the bookmark')
     .option('--author-only', 'Include all tweets from bookmarked tweet author in thread')
     .option('--full-chain-only', 'Save entire reply chain connected to the bookmarked tweet')
+    .option('--include-ancestor-branches', 'Include sibling branches for ancestors when using --full-chain-only')
     .option('--include-parent', 'Include direct parent tweet for non-root bookmarks')
     .option('--thread-meta', 'Add metadata fields (isThread, threadPosition, etc.)')
     .option('--sort-chronological', 'Sort output globally oldest -> newest')
@@ -42,6 +43,7 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
         authorChain?: boolean;
         authorOnly?: boolean;
         fullChainOnly?: boolean;
+        includeAncestorBranches?: boolean;
         includeParent?: boolean;
         threadMeta?: boolean;
         sortChronological?: boolean;
@@ -106,6 +108,9 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
               'other chain filters are redundant.',
           );
         }
+        if (cmdOpts.includeAncestorBranches && !cmdOpts.fullChainOnly) {
+          console.error(`${ctx.p('warn')}--include-ancestor-branches only applies with --full-chain-only.`);
+        }
 
         const bookmarks = result.tweets;
         if (!bookmarks || bookmarks.length === 0) {
@@ -123,6 +128,7 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
         const filterAuthorChainFlag = Boolean(cmdOpts.authorChain);
         const filterAuthorOnlyFlag = Boolean(cmdOpts.authorOnly);
         const filterFullChainFlag = Boolean(cmdOpts.fullChainOnly);
+        const includeAncestorBranches = Boolean(cmdOpts.includeAncestorBranches) && filterFullChainFlag;
         const useChronologicalSort = Boolean(cmdOpts.sortChronological);
 
         const shouldAttemptExpand =
@@ -178,7 +184,9 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
               if (filterAuthorChainFlag) {
                 outputTweets = filterAuthorChain(threadTweets, bookmark);
               } else {
-                outputTweets = filterFullChainFlag ? filterFullChain(threadTweets, bookmark) : threadTweets;
+                outputTweets = filterFullChainFlag
+                  ? filterFullChain(threadTweets, bookmark, { includeAncestorBranches })
+                  : threadTweets;
                 if (filterAuthorOnlyFlag) {
                   outputTweets = filterAuthorOnly(outputTweets, bookmark);
                 }
@@ -227,7 +235,10 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
 
         const emptyMessage = folderId ? 'No bookmarks found in folder.' : 'No bookmarks found.';
         const isJson = Boolean(cmdOpts.json || cmdOpts.jsonFull);
-        ctx.printTweetsResult({ tweets: uniqueTweets }, { json: isJson, usePagination, emptyMessage });
+        ctx.printTweetsResult(
+          { tweets: uniqueTweets, nextCursor: result.nextCursor },
+          { json: isJson, usePagination, emptyMessage },
+        );
       },
     );
 }

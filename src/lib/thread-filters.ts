@@ -51,7 +51,11 @@ export function filterAuthorOnly(tweets: TweetData[], bookmarkedTweet: TweetData
   return tweets.filter((tweet) => tweet.author.username === author);
 }
 
-export function filterFullChain(tweets: TweetData[], bookmarkedTweet: TweetData): TweetData[] {
+export function filterFullChain(
+  tweets: TweetData[],
+  bookmarkedTweet: TweetData,
+  options: { includeAncestorBranches?: boolean } = {},
+): TweetData[] {
   const byId = new Map(tweets.map((tweet) => [tweet.id, tweet]));
   const repliesByParent = new Map<string, TweetData[]>();
 
@@ -64,28 +68,49 @@ export function filterFullChain(tweets: TweetData[], bookmarkedTweet: TweetData)
     repliesByParent.set(tweet.inReplyToStatusId, list);
   }
 
-  const chainIds = new Set<string>([bookmarkedTweet.id]);
-  const queue: string[] = [bookmarkedTweet.id];
+  const chainIds = new Set<string>();
+  const ancestorIds: string[] = [];
 
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    if (!currentId) {
-      continue;
+  chainIds.add(bookmarkedTweet.id);
+  let current: TweetData | undefined = bookmarkedTweet;
+  while (current?.inReplyToStatusId) {
+    const parent = byId.get(current.inReplyToStatusId);
+    if (!parent) {
+      break;
     }
-    const current = byId.get(currentId);
-    const parentId = current?.inReplyToStatusId;
-    if (parentId && byId.has(parentId) && !chainIds.has(parentId)) {
-      chainIds.add(parentId);
-      queue.push(parentId);
+    if (!chainIds.has(parent.id)) {
+      chainIds.add(parent.id);
+      ancestorIds.push(parent.id);
     }
+    current = parent;
+  }
 
-    const replies = repliesByParent.get(currentId) ?? [];
-    for (const reply of replies) {
-      if (chainIds.has(reply.id)) {
+  const addDescendants = (startIds: string[]) => {
+    const queue = [...startIds];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (!currentId) {
         continue;
       }
-      chainIds.add(reply.id);
-      queue.push(reply.id);
+      if (!chainIds.has(currentId)) {
+        chainIds.add(currentId);
+      }
+      const replies = repliesByParent.get(currentId) ?? [];
+      for (const reply of replies) {
+        if (chainIds.has(reply.id)) {
+          continue;
+        }
+        chainIds.add(reply.id);
+        queue.push(reply.id);
+      }
+    }
+  };
+
+  addDescendants([bookmarkedTweet.id]);
+
+  if (options.includeAncestorBranches) {
+    for (const ancestorId of ancestorIds) {
+      addDescendants([ancestorId]);
     }
   }
 
