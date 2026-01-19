@@ -1467,7 +1467,7 @@ _Design: Data Flow_
 
 ---
 
-### Task 3.11: E2E test - real Twitter search (if Bird credentials available)
+### Task 3.11: E2E test - real Twitter search (if Bird credentials available) [x]
 
 **Do**:
 1. Create `src/__tests__/e2e/real-twitter.test.ts`:
