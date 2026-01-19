@@ -534,7 +534,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 ---
 
-### Task 1.17: Responder - Bird reply with media upload
+### Task 1.17: Responder - Bird reply with media upload [x]
 
 **Do**:
 1. Create `src/responder.ts`:
