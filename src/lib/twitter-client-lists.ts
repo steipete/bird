@@ -8,6 +8,12 @@ import type { TimelineFetchOptions, TimelinePaginationOptions } from './twitter-
 import type { GraphqlTweetResult, ListsResult, SearchResult, TweetData, TwitterList } from './twitter-client-types.js';
 import { extractCursorFromInstructions, parseTweetsFromInstructions } from './twitter-client-utils.js';
 
+const QUERY_UNSPECIFIED_REGEX = /query:\s*unspecified/i;
+
+function isQueryIdMismatch(errors: Array<{ message?: string }>): boolean {
+  return errors.some((error) => QUERY_UNSPECIFIED_REGEX.test(error.message ?? ''));
+}
+
 export interface TwitterClientListMethods {
   getOwnedLists(count?: number): Promise<ListsResult>;
   getListMemberships(count?: number): Promise<ListsResult>;
@@ -189,11 +195,23 @@ export function withLists<TBase extends AbstractConstructor<TwitterClientBase>>(
               errors?: Array<{ message: string }>;
             };
 
+            const instructions = data.data?.user?.result?.timeline?.timeline?.instructions;
             if (data.errors && data.errors.length > 0) {
-              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404 };
+              const errorMessage = data.errors.map((e) => e.message).join(', ');
+              if (!instructions) {
+                if (isQueryIdMismatch(data.errors)) {
+                  had404 = true;
+                  lastError = errorMessage;
+                  continue;
+                }
+                return {
+                  success: false as const,
+                  error: errorMessage,
+                  had404,
+                };
+              }
             }
 
-            const instructions = data.data?.user?.result?.timeline?.timeline?.instructions;
             const lists = parseListsFromInstructions(instructions);
 
             return { success: true as const, lists, had404 };
@@ -293,11 +311,23 @@ export function withLists<TBase extends AbstractConstructor<TwitterClientBase>>(
               errors?: Array<{ message: string }>;
             };
 
+            const instructions = data.data?.user?.result?.timeline?.timeline?.instructions;
             if (data.errors && data.errors.length > 0) {
-              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404 };
+              const errorMessage = data.errors.map((e) => e.message).join(', ');
+              if (!instructions) {
+                if (isQueryIdMismatch(data.errors)) {
+                  had404 = true;
+                  lastError = errorMessage;
+                  continue;
+                }
+                return {
+                  success: false as const,
+                  error: errorMessage,
+                  had404,
+                };
+              }
             }
 
-            const instructions = data.data?.user?.result?.timeline?.timeline?.instructions;
             const lists = parseListsFromInstructions(instructions);
 
             return { success: true as const, lists, had404 };
@@ -416,11 +446,23 @@ export function withLists<TBase extends AbstractConstructor<TwitterClientBase>>(
               errors?: Array<{ message: string }>;
             };
 
+            const instructions = data.data?.list?.tweets_timeline?.timeline?.instructions;
             if (data.errors && data.errors.length > 0) {
-              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404 };
+              const errorMessage = data.errors.map((e) => e.message).join(', ');
+              if (!instructions) {
+                if (isQueryIdMismatch(data.errors)) {
+                  had404 = true;
+                  lastError = errorMessage;
+                  continue;
+                }
+                return {
+                  success: false as const,
+                  error: errorMessage,
+                  had404,
+                };
+              }
             }
 
-            const instructions = data.data?.list?.tweets_timeline?.timeline?.instructions;
             const pageTweets = parseTweetsFromInstructions(instructions, { quoteDepth: this.quoteDepth, includeRaw });
             const nextCursor = extractCursorFromInstructions(instructions);
 
