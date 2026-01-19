@@ -339,7 +339,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 ---
 
-### Task 1.11: Manus client - task creation and polling
+### Task 1.11: Manus client - task creation and polling [x]
 
 **Do**:
 1. Create `src/manus-client.ts` implementing the **ManusClient interface from design.md**:
