@@ -1065,7 +1065,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 ---
 
-### Task 2.10: Graceful shutdown - signal handling
+### Task 2.10: Graceful shutdown - signal handling [x]
 
 **Do**:
 1. Update `src/index.ts` following **design.md Graceful Shutdown section**:
