@@ -253,7 +253,7 @@ cd ai-agents-responder && bun run tsc --noEmit
 
 ---
 
-### Task 1.8: Poller - Bird search wrapper
+### Task 1.8: Poller - Bird search wrapper [x]
 
 **Do**:
 1. Create `src/poller.ts`:
