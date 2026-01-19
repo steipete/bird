@@ -380,7 +380,7 @@ _Design: Generator component, ManusClient interface (design.md)_
 
 ---
 
-### Task 1.12: PDF converter - PDF to PNG with compression
+### Task 1.12: PDF converter - PDF to PNG with compression [x]
 
 **Do**:
 1. Create `src/pdf-converter.ts`:
