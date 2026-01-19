@@ -959,7 +959,7 @@ _Design: Circuit Breaker Design (design.md), Circuit breaker state machine diagr
 
 ---
 
-### Task 2.6: [VERIFY] Quality checkpoint
+### Task 2.6: [VERIFY] Quality checkpoint [x]
 
 **Do**: Type check utilities
 
