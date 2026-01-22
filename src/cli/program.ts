@@ -1,4 +1,6 @@
 import { Command } from 'commander';
+import { registerBookmarkCommand } from '../commands/bookmark.js';
+import { registerBookmarkToFolderCommand } from '../commands/bookmark-to-folder.js';
 import { registerBookmarksCommand } from '../commands/bookmarks.js';
 import { registerCheckCommand } from '../commands/check.js';
 import { registerFollowCommands } from '../commands/follow.js';
@@ -25,6 +27,8 @@ export const KNOWN_COMMANDS = new Set([
   'thread',
   'search',
   'mentions',
+  'bookmark',
+  'bookmark-to-folder',
   'bookmarks',
   'unbookmark',
   'follow',
@@ -143,6 +147,8 @@ export function createProgram(ctx: CliContext): Command {
   registerPostCommands(program, ctx);
   registerReadCommands(program, ctx);
   registerSearchCommands(program, ctx);
+  registerBookmarkCommand(program, ctx);
+  registerBookmarkToFolderCommand(program, ctx);
   registerBookmarksCommand(program, ctx);
   registerUnbookmarkCommand(program, ctx);
   registerFollowCommands(program, ctx);
