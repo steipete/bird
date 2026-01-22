@@ -17,6 +17,7 @@ const TARGET_OPERATIONS = [
   'UnfavoriteTweet',
   'CreateBookmark',
   'DeleteBookmark',
+  'bookmarkTweetToFolder',
   'TweetDetail',
   'SearchTimeline',
   'Bookmarks',
