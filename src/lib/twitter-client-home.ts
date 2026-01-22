@@ -14,6 +14,10 @@ function isQueryIdMismatch(errors: Array<{ message?: string }>): boolean {
 export interface HomeTimelineFetchOptions {
   /** Include raw GraphQL response in `_raw` field */
   includeRaw?: boolean;
+  /** Cursor for pagination - continue from this position */
+  cursor?: string;
+  /** Maximum number of pages to fetch (returns nextCursor if more available) */
+  maxPages?: number;
 }
 
 export interface TwitterClientHomeMethods {
@@ -59,12 +63,14 @@ export function withHome<TBase extends AbstractConstructor<TwitterClientBase>>(
       count: number,
       options: HomeTimelineFetchOptions,
     ): Promise<SearchResult> {
-      const { includeRaw = false } = options;
+      const { includeRaw = false, cursor: externalCursor, maxPages } = options;
       const features = buildHomeTimelineFeatures();
       const pageSize = 20;
       const seen = new Set<string>();
       const tweets: TweetData[] = [];
-      let cursor: string | undefined;
+      let cursor: string | undefined = externalCursor;
+      let nextCursor: string | undefined;
+      let pagesFetched = 0;
 
       const fetchPage = async (pageCount: number, pageCursor?: string) => {
         let lastError: string | undefined;
@@ -170,6 +176,7 @@ export function withHome<TBase extends AbstractConstructor<TwitterClientBase>>(
       while (tweets.length < count) {
         const pageCount = Math.min(pageSize, count - tweets.length);
         const page = await fetchWithRefresh(pageCount, cursor);
+        pagesFetched += 1;
         if (!page.success) {
           return { success: false, error: page.error };
         }
@@ -188,12 +195,18 @@ export function withHome<TBase extends AbstractConstructor<TwitterClientBase>>(
         }
 
         if (!page.cursor || page.cursor === cursor || page.tweets.length === 0 || added === 0) {
+          nextCursor = undefined;
+          break;
+        }
+        if (maxPages && pagesFetched >= maxPages) {
+          nextCursor = page.cursor;
           break;
         }
         cursor = page.cursor;
+        nextCursor = page.cursor;
       }
 
-      return { success: true, tweets };
+      return { success: true, tweets, nextCursor };
     }
   }
 
