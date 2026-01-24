@@ -1,11 +1,12 @@
 import type { AbstractConstructor, Mixin, TwitterClientBase } from './twitter-client-base.js';
 import { TWITTER_API_BASE, TWITTER_GRAPHQL_POST_URL, TWITTER_STATUS_UPDATE_URL } from './twitter-client-constants.js';
 import { buildTweetCreateFeatures } from './twitter-client-features.js';
-import type { CreateTweetResponse, TweetResult } from './twitter-client-types.js';
+import type { BookmarkMutationResult, CreateTweetResponse, TweetResult } from './twitter-client-types.js';
 
 export interface TwitterClientPostingMethods {
   tweet(text: string, mediaIds?: string[]): Promise<TweetResult>;
   reply(text: string, replyToTweetId: string, mediaIds?: string[]): Promise<TweetResult>;
+  deleteTweet(tweetId: string): Promise<BookmarkMutationResult>;
 }
 
 export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>>(
@@ -57,6 +58,70 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
       const features = buildTweetCreateFeatures();
 
       return this.createTweet(variables, features);
+    }
+
+    /**
+     * Delete a tweet
+     */
+    async deleteTweet(tweetId: string): Promise<BookmarkMutationResult> {
+      await this.ensureClientUserId();
+      let queryId = await this.getQueryId('DeleteTweet');
+      let urlWithOperation = `${TWITTER_API_BASE}/${queryId}/DeleteTweet`;
+
+      const variables = {
+        tweet_id: tweetId,
+        dark_request: false,
+      };
+
+      const buildBody = () => JSON.stringify({ variables, queryId });
+      let body = buildBody();
+
+      try {
+        const headers = { ...this.getHeaders(), referer: 'https://x.com/' };
+        let response = await this.fetchWithTimeout(urlWithOperation, {
+          method: 'POST',
+          headers,
+          body,
+        });
+
+        // If 404, refresh query IDs and retry
+        if (response.status === 404) {
+          await this.refreshQueryIds();
+          queryId = await this.getQueryId('DeleteTweet');
+          urlWithOperation = `${TWITTER_API_BASE}/${queryId}/DeleteTweet`;
+          body = buildBody();
+
+          response = await this.fetchWithTimeout(urlWithOperation, {
+            method: 'POST',
+            headers: { ...this.getHeaders(), referer: 'https://x.com/' },
+            body,
+          });
+        }
+
+        if (!response.ok) {
+          const text = await response.text();
+          return {
+            success: false,
+            error: `HTTP ${response.status}: ${text.slice(0, 200)}`,
+          };
+        }
+
+        const data = (await response.json()) as { data?: { delete_tweet?: { tweet_results?: unknown } }; errors?: Array<{ message: string; code?: number }> };
+
+        if (data.errors && data.errors.length > 0) {
+          return {
+            success: false,
+            error: data.errors.map((e) => e.message).join(', '),
+          };
+        }
+
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
     }
 
     private async createTweet(
