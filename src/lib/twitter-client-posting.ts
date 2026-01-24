@@ -67,6 +67,7 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
       await this.ensureClientUserId();
       let queryId = await this.getQueryId('DeleteTweet');
       let urlWithOperation = `${TWITTER_API_BASE}/${queryId}/DeleteTweet`;
+      const referer = `https://x.com/i/status/${tweetId}`;
 
       const variables = {
         tweet_id: tweetId,
@@ -77,14 +78,14 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
       let body = buildBody();
 
       try {
-        const headers = { ...this.getHeaders(), referer: 'https://x.com/' };
+        const headers = { ...this.getHeaders(), referer };
         let response = await this.fetchWithTimeout(urlWithOperation, {
           method: 'POST',
           headers,
           body,
         });
 
-        // If 404, refresh query IDs and retry
+        // If 404, refresh query IDs and retry with operation URL
         if (response.status === 404) {
           await this.refreshQueryIds();
           queryId = await this.getQueryId('DeleteTweet');
@@ -93,9 +94,18 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
 
           response = await this.fetchWithTimeout(urlWithOperation, {
             method: 'POST',
-            headers: { ...this.getHeaders(), referer: 'https://x.com/' },
+            headers: { ...this.getHeaders(), referer },
             body,
           });
+
+          // If still 404, fallback to generic GraphQL endpoint
+          if (response.status === 404) {
+            response = await this.fetchWithTimeout(TWITTER_GRAPHQL_POST_URL, {
+              method: 'POST',
+              headers: { ...this.getHeaders(), referer },
+              body,
+            });
+          }
         }
 
         if (!response.ok) {
@@ -112,6 +122,14 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
           return {
             success: false,
             error: data.errors.map((e) => e.message).join(', '),
+          };
+        }
+
+        // Verify the deletion was acknowledged
+        if (!data.data?.delete_tweet) {
+          return {
+            success: false,
+            error: 'Delete request succeeded but no confirmation returned',
           };
         }
 

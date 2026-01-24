@@ -7,35 +7,53 @@ export function registerDeleteCommand(program: Command, ctx: CliContext): void {
     .command('delete')
     .description('Delete a tweet')
     .argument('<tweet-id-or-url...>', 'Tweet IDs or URLs to delete')
-    .action(async (tweetIdOrUrls: string[]) => {
+    .option('--json', 'Output results as JSON')
+    .action(async (tweetIdOrUrls: string[], cmdOpts: { json?: boolean }) => {
       const opts = program.opts();
       const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
+      const jsonOutput = cmdOpts.json ?? opts.json;
 
       const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
 
       for (const warning of warnings) {
-        console.error(`${ctx.p('warn')}${warning}`);
+        if (!jsonOutput) {
+          console.error(`${ctx.p('warn')}${warning}`);
+        }
       }
 
       if (!cookies.authToken || !cookies.ct0) {
-        console.error(`${ctx.p('err')}Missing required credentials`);
+        if (jsonOutput) {
+          console.log(JSON.stringify({ success: false, error: 'Missing required credentials' }));
+        } else {
+          console.error(`${ctx.p('err')}Missing required credentials`);
+        }
         process.exit(1);
       }
 
       const client = new TwitterClient({ cookies, timeoutMs });
-      let failures = 0;
+      const results: Array<{ tweetId: string; success: boolean; error?: string }> = [];
 
       for (const input of tweetIdOrUrls) {
         const tweetId = ctx.extractTweetId(input);
         const result = await client.deleteTweet(tweetId);
         if (result.success) {
-          console.log(`${ctx.p('ok')}Deleted tweet ${tweetId}`);
+          results.push({ tweetId, success: true });
+          if (!jsonOutput) {
+            console.log(`${ctx.p('ok')}Deleted tweet ${tweetId}`);
+          }
         } else {
-          failures += 1;
-          console.error(`${ctx.p('err')}Failed to delete tweet ${tweetId}: ${result.error}`);
+          results.push({ tweetId, success: false, error: result.error });
+          if (!jsonOutput) {
+            console.error(`${ctx.p('err')}Failed to delete tweet ${tweetId}: ${result.error}`);
+          }
         }
       }
 
+      if (jsonOutput) {
+        console.log(JSON.stringify(results.length === 1 ? results[0] : results, null, 2));
+      }
+
+      const failures = results.filter((r) => !r.success).length;
       if (failures > 0) {
         process.exit(1);
       }
