@@ -1,5 +1,5 @@
 // ABOUTME: CLI command for fetching Twitter Lists.
-// ABOUTME: Supports listing owned lists, memberships, list timelines, and member management.
+// ABOUTME: Supports listing owned lists, memberships, and list timelines.
 
 import type { Command } from 'commander';
 import { parsePaginationFlags } from '../cli/pagination.js';
@@ -75,11 +75,8 @@ function printMembers(members: TwitterUser[], ctx: CliContext): void {
 }
 
 export function registerListsCommand(program: Command, ctx: CliContext): void {
-  const listCmd = program.command('list').description('Manage Twitter lists');
-
-  // bird list ls (or just bird list with no subcommand shows owned lists)
-  listCmd
-    .command('ls', { isDefault: true })
+  program
+    .command('lists')
     .description('Get your Twitter lists')
     .option('--member-of', 'Show lists you are a member of (instead of owned lists)')
     .option('-n, --count <number>', 'Number of lists to fetch', '100')
@@ -121,9 +118,8 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
       }
     });
 
-  // bird list timeline <id>
-  listCmd
-    .command('timeline <list-id-or-url>')
+  program
+    .command('list-timeline <list-id-or-url>')
     .description('Get tweets from a list timeline')
     .option('-n, --count <number>', 'Number of tweets to fetch', '20')
     .option('--all', 'Fetch all tweets from list (paged). WARNING: your account might get banned using this flag')
@@ -199,6 +195,8 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
         }
       },
     );
+
+  const listCmd = program.command('list').description('Manage Twitter lists');
 
   // bird list members <id>
   listCmd
