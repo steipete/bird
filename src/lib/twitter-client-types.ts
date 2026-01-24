@@ -387,6 +387,23 @@ export interface ListsResult {
   error?: string;
 }
 
+export type ListMutationResult =
+  | {
+      success: true;
+      list?: TwitterList;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
+export interface ListMembersResult {
+  success: boolean;
+  members?: TwitterUser[];
+  error?: string;
+  nextCursor?: string;
+}
+
 export interface CreateTweetResponse {
   data?: {
     create_tweet?: {
