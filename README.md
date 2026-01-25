@@ -7,6 +7,9 @@
 This project uses X/Twitter’s **undocumented** web GraphQL API (and cookie auth). X can change endpoints, query IDs,
 and anti-bot behavior at any time — **expect this to break without notice**.
 
+**Strong recommendation: Do not use bird to tweet. You will hit blocks very quickly. Use it to read tweets.
+Bots are not welcome on X/Twitter. If you absolutely have to, use browser automation instead, or pay for the Twitter API to create tweets.**
+
 ## Install
 
 ```bash
