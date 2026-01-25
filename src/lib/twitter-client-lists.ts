@@ -5,14 +5,26 @@ import type { AbstractConstructor, Mixin, TwitterClientBase } from './twitter-cl
 import { TWITTER_API_BASE } from './twitter-client-constants.js';
 import { buildListsFeatures } from './twitter-client-features.js';
 import type { TimelineFetchOptions, TimelinePaginationOptions } from './twitter-client-timelines.js';
-import type { GraphqlTweetResult, ListsResult, SearchResult, TweetData, TwitterList } from './twitter-client-types.js';
-import { extractCursorFromInstructions, parseTweetsFromInstructions } from './twitter-client-utils.js';
+import type {
+  GraphqlTweetResult,
+  ListMembersResult,
+  ListsResult,
+  SearchResult,
+  TweetData,
+  TwitterList,
+} from './twitter-client-types.js';
+import {
+  extractCursorFromInstructions,
+  parseTweetsFromInstructions,
+  parseUsersFromInstructions,
+} from './twitter-client-utils.js';
 
 export interface TwitterClientListMethods {
   getOwnedLists(count?: number): Promise<ListsResult>;
   getListMemberships(count?: number): Promise<ListsResult>;
   getListTimeline(listId: string, count?: number, options?: TimelineFetchOptions): Promise<SearchResult>;
   getAllListTimeline(listId: string, options?: TimelinePaginationOptions): Promise<SearchResult>;
+  getListMembers(listId: string, count?: number, cursor?: string): Promise<ListMembersResult>;
 }
 
 interface GraphqlListResult {
@@ -116,6 +128,11 @@ export function withLists<TBase extends AbstractConstructor<TwitterClientBase>>(
     private async getListTimelineQueryIds(): Promise<string[]> {
       const primary = await this.getQueryId('ListLatestTweetsTimeline');
       return Array.from(new Set([primary, '2TemLyqrMpTeAmysdbnVqw']));
+    }
+
+    private async getListMembersQueryIds(): Promise<string[]> {
+      const primary = await this.getQueryId('ListMembers');
+      return Array.from(new Set([primary, 'PIWQLsXHcxJvzjJwP7s2PQ']));
     }
 
     /**
@@ -485,6 +502,101 @@ export function withLists<TBase extends AbstractConstructor<TwitterClientBase>>(
       }
 
       return { success: true, tweets, nextCursor };
+    }
+
+    /**
+     * Get members of a list
+     */
+    async getListMembers(listId: string, count = 20, cursor?: string): Promise<ListMembersResult> {
+      const variables: Record<string, unknown> = {
+        listId,
+        count,
+        withSafetyModeUserFields: true,
+      };
+
+      if (cursor) {
+        variables.cursor = cursor;
+      }
+
+      const features = buildListsFeatures();
+
+      const params = new URLSearchParams({
+        variables: JSON.stringify(variables),
+        features: JSON.stringify(features),
+      });
+
+      const tryOnce = async () => {
+        let lastError: string | undefined;
+        let had404 = false;
+        const queryIds = await this.getListMembersQueryIds();
+
+        for (const queryId of queryIds) {
+          const url = `${TWITTER_API_BASE}/${queryId}/ListMembers?${params.toString()}`;
+
+          try {
+            const response = await this.fetchWithTimeout(url, {
+              method: 'GET',
+              headers: this.getHeaders(),
+            });
+
+            if (response.status === 404) {
+              had404 = true;
+              lastError = `HTTP ${response.status}`;
+              continue;
+            }
+
+            if (!response.ok) {
+              const text = await response.text();
+              return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404 };
+            }
+
+            const data = (await response.json()) as {
+              data?: {
+                list?: {
+                  members_timeline?: {
+                    timeline?: {
+                      instructions?: Array<{ type?: string; entries?: Array<unknown> }>;
+                    };
+                  };
+                };
+              };
+              errors?: Array<{ message: string }>;
+            };
+
+            if (data.errors && data.errors.length > 0) {
+              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404 };
+            }
+
+            const instructions = data.data?.list?.members_timeline?.timeline?.instructions;
+            const users = parseUsersFromInstructions(instructions);
+            const nextCursor = extractCursorFromInstructions(
+              instructions as Array<{ entries?: Array<{ content?: unknown }> }> | undefined,
+            );
+
+            return { success: true as const, users, nextCursor, had404 };
+          } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+          }
+        }
+
+        return { success: false as const, error: lastError ?? 'Unknown error fetching list members', had404 };
+      };
+
+      const firstAttempt = await tryOnce();
+      if (firstAttempt.success) {
+        return { success: true, users: firstAttempt.users, nextCursor: firstAttempt.nextCursor };
+      }
+
+      if (firstAttempt.had404) {
+        await this.refreshQueryIds();
+        const secondAttempt = await tryOnce();
+        if (secondAttempt.success) {
+          return { success: true, users: secondAttempt.users, nextCursor: secondAttempt.nextCursor };
+        }
+        return { success: false, error: secondAttempt.error };
+      }
+
+      return { success: false, error: firstAttempt.error };
     }
   }
 

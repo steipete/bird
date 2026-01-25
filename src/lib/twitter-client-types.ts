@@ -387,6 +387,13 @@ export interface ListsResult {
   error?: string;
 }
 
+export interface ListMembersResult {
+  success: boolean;
+  users?: TwitterUser[];
+  nextCursor?: string;
+  error?: string;
+}
+
 export interface CreateTweetResponse {
   data?: {
     create_tweet?: {

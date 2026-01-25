@@ -6,8 +6,21 @@ import { parsePaginationFlags } from '../cli/pagination.js';
 import type { CliContext } from '../cli/shared.js';
 import { extractListId } from '../lib/extract-list-id.js';
 import { hyperlink } from '../lib/output.js';
-import type { TwitterList } from '../lib/twitter-client.js';
+import type { TwitterList, TwitterUser } from '../lib/twitter-client.js';
 import { TwitterClient } from '../lib/twitter-client.js';
+
+function printUsers(users: TwitterUser[], ctx: CliContext): void {
+  for (const user of users) {
+    console.log(`@${user.username} (${user.name})`);
+    if (user.description) {
+      console.log(`  ${user.description.slice(0, 100)}${user.description.length > 100 ? '...' : ''}`);
+    }
+    if (user.followersCount !== undefined) {
+      console.log(`  ${ctx.p('info')}${user.followersCount.toLocaleString()} followers`);
+    }
+    console.log('──────────────────────────────────────────────────');
+  }
+}
 
 function printLists(lists: TwitterList[], ctx: CliContext): void {
   if (lists.length === 0) {
@@ -148,6 +161,150 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
           });
         } else {
           console.error(`${ctx.p('err')}Failed to fetch list timeline: ${result.error}`);
+          process.exit(1);
+        }
+      },
+    );
+
+  program
+    .command('list-members <list-id-or-url>')
+    .description('Get members of a list')
+    .option('-n, --count <number>', 'Number of members to fetch per page', '20')
+    .option('--cursor <string>', 'Resume pagination from a cursor')
+    .option('--all', 'Fetch all members (paginate automatically)')
+    .option('--max-pages <number>', 'Stop after N pages when using --all')
+    .option('--json', 'Output as JSON')
+    .action(
+      async (
+        listIdOrUrl: string,
+        cmdOpts: {
+          count?: string;
+          cursor?: string;
+          all?: boolean;
+          maxPages?: string;
+          json?: boolean;
+        },
+      ) => {
+        const opts = program.opts();
+        const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
+        const count = Number.parseInt(cmdOpts.count || '20', 10);
+        const maxPages = cmdOpts.maxPages ? Number.parseInt(cmdOpts.maxPages, 10) : undefined;
+
+        const listId = extractListId(listIdOrUrl);
+        if (!listId) {
+          console.error(`${ctx.p('err')}Invalid list ID or URL. Expected numeric ID or https://x.com/i/lists/<id>.`);
+          process.exit(2);
+        }
+
+        const usePagination = cmdOpts.all || cmdOpts.cursor;
+        if (maxPages !== undefined && !cmdOpts.all) {
+          console.error(`${ctx.p('err')}--max-pages requires --all.`);
+          process.exit(1);
+        }
+        if (maxPages !== undefined && (!Number.isFinite(maxPages) || maxPages <= 0)) {
+          console.error(`${ctx.p('err')}Invalid --max-pages. Expected a positive integer.`);
+          process.exit(1);
+        }
+        if (!usePagination && (!Number.isFinite(count) || count <= 0)) {
+          console.error(`${ctx.p('err')}Invalid --count. Expected a positive integer.`);
+          process.exit(1);
+        }
+
+        const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
+
+        for (const warning of warnings) {
+          console.error(`${ctx.p('warn')}${warning}`);
+        }
+
+        if (!cookies.authToken || !cookies.ct0) {
+          console.error(`${ctx.p('err')}Missing required credentials`);
+          process.exit(1);
+        }
+
+        const client = new TwitterClient({ cookies, timeoutMs });
+
+        if (cmdOpts.all) {
+          const allUsers: TwitterUser[] = [];
+          const seen = new Set<string>();
+          let cursor: string | undefined = cmdOpts.cursor;
+          let pageNum = 0;
+          let nextCursor: string | undefined;
+
+          while (true) {
+            pageNum += 1;
+            if (!cmdOpts.json) {
+              console.error(`${ctx.p('info')}Fetching page ${pageNum}...`);
+            }
+
+            const result = await client.getListMembers(listId, count, cursor);
+
+            if (!result.success || !result.users) {
+              console.error(`${ctx.p('err')}Failed to fetch list members: ${result.error}`);
+              process.exit(1);
+            }
+
+            let added = 0;
+            for (const user of result.users) {
+              if (!seen.has(user.id)) {
+                seen.add(user.id);
+                allUsers.push(user);
+                added += 1;
+              }
+            }
+
+            const pageCursor = result.nextCursor;
+            if (!pageCursor || result.users.length === 0 || added === 0 || pageCursor === cursor) {
+              nextCursor = undefined;
+              break;
+            }
+
+            if (maxPages && pageNum >= maxPages) {
+              nextCursor = pageCursor;
+              break;
+            }
+
+            cursor = pageCursor;
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+
+          if (cmdOpts.json) {
+            console.log(JSON.stringify({ users: allUsers, nextCursor: nextCursor ?? null }, null, 2));
+          } else {
+            console.error(`${ctx.p('info')}Total: ${allUsers.length} members`);
+            if (nextCursor) {
+              console.error(`${ctx.p('info')}Stopped at --max-pages. Use --cursor to continue.`);
+              console.error(`${ctx.p('info')}Next cursor: ${nextCursor}`);
+            }
+            if (allUsers.length === 0) {
+              console.log('No members found in this list.');
+            } else {
+              printUsers(allUsers, ctx);
+            }
+          }
+
+          return;
+        }
+
+        const result = await client.getListMembers(listId, count, cmdOpts.cursor);
+        if (result.success && result.users) {
+          if (cmdOpts.json) {
+            if (usePagination) {
+              console.log(JSON.stringify({ users: result.users, nextCursor: result.nextCursor ?? null }, null, 2));
+            } else {
+              console.log(JSON.stringify(result.users, null, 2));
+            }
+          } else {
+            if (result.users.length === 0) {
+              console.log('No members found in this list.');
+            } else {
+              printUsers(result.users, ctx);
+              if (result.nextCursor) {
+                console.error(`${ctx.p('info')}Next cursor: ${result.nextCursor}`);
+              }
+            }
+          }
+        } else {
+          console.error(`${ctx.p('err')}Failed to fetch list members: ${result.error}`);
           process.exit(1);
         }
       },
