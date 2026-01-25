@@ -1,0 +1,74 @@
+[
+  {
+    "authorId": "12",
+    "username": "sama",
+    "name": "Sam Altman",
+    "followerCount": 3500000
+  },
+  {
+    "authorId": "33836629",
+    "username": "karpathy",
+    "name": "Andrej Karpathy",
+    "followerCount": 900000
+  },
+  {
+    "authorId": "2960884937",
+    "username": "ylecun",
+    "name": "Yann LeCun",
+    "followerCount": 750000
+  },
+  {
+    "authorId": "18916432",
+    "username": "demaborges",
+    "name": "Dema Borges",
+    "followerCount": 120000
+  },
+  {
+    "authorId": "1280536330987073536",
+    "username": "emaborges",
+    "name": "Ema Borges",
+    "followerCount": 85000
+  },
+  {
+    "authorId": "1392496783",
+    "username": "garrytan",
+    "name": "Garry Tan",
+    "followerCount": 500000
+  },
+  {
+    "authorId": "1051053836",
+    "username": "AndrewYNg",
+    "name": "Andrew Ng",
+    "followerCount": 1000000
+  },
+  {
+    "authorId": "48008644",
+    "username": "EMostaque",
+    "name": "Emad Mostaque",
+    "followerCount": 350000
+  },
+  {
+    "authorId": "134325442",
+    "username": "alexandr_wang",
+    "name": "Alexandr Wang",
+    "followerCount": 200000
+  },
+  {
+    "authorId": "39851058",
+    "username": "gaborcselle",
+    "name": "Gabor Cselle",
+    "followerCount": 80000
+  },
+  {
+    "authorId": "4398626122",
+    "username": "AravSrinivas",
+    "name": "Aravind Srinivas",
+    "followerCount": 300000
+  },
+  {
+    "authorId": "1395156045891878915",
+    "username": "MustafaSuleworthy",
+    "name": "Mustafa Suleyman",
+    "followerCount": 150000
+  }
+]

@@ -1,0 +1,31 @@
+{
+  "name": "@zaigo/ai-agents-responder",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Twitter auto-responder for AI agents posts with PDF summaries",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts",
+    "test": "vitest run --config vitest.config.ts && bun test src/__tests__/database.test.ts src/__tests__/integration/ src/__tests__/e2e/",
+    "test:vitest": "vitest run --config vitest.config.ts",
+    "test:bun": "bun test src/__tests__/database.test.ts src/__tests__/integration/ src/__tests__/e2e/",
+    "lint": "biome check src/ && oxlint src/",
+    "lint:biome": "biome check src/",
+    "lint:oxlint": "oxlint src/",
+    "lint:fix": "biome check --write src/",
+    "format": "biome format --write src/",
+    "check-types": "tsc --noEmit",
+    "seed-db": "bun run scripts/seed-db.ts"
+  },
+  "dependencies": {
+    "@steipete/bird": "file:..",
+    "dotenv": "^16.4.5",
+    "pdf-to-png-converter": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.15",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
