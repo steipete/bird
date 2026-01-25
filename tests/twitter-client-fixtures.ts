@@ -17,5 +17,8 @@ export type TwitterClientPrivate = TwitterClient & {
   getListTimelineQueryIds: () => Promise<string[]>;
   getListOwnershipsQueryIds: () => Promise<string[]>;
   getListMembershipsQueryIds: () => Promise<string[]>;
+  getListMembersQueryIds: () => Promise<string[]>;
+  getListAddMemberQueryIds: () => Promise<string[]>;
+  getListRemoveMemberQueryIds: () => Promise<string[]>;
   refreshQueryIds: () => Promise<void>;
 };

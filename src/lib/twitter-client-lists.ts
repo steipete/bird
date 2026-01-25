@@ -5,14 +5,17 @@ import type { AbstractConstructor, Mixin, TwitterClientBase } from './twitter-cl
 import { TWITTER_API_BASE } from './twitter-client-constants.js';
 import { buildListsFeatures } from './twitter-client-features.js';
 import type { TimelineFetchOptions, TimelinePaginationOptions } from './twitter-client-timelines.js';
-import type { GraphqlTweetResult, ListsResult, SearchResult, TweetData, TwitterList } from './twitter-client-types.js';
-import { extractCursorFromInstructions, parseTweetsFromInstructions } from './twitter-client-utils.js';
+import type { GraphqlTweetResult, ListMembersResult, ListMutationResult, ListsResult, SearchResult, TweetData, TwitterList } from './twitter-client-types.js';
+import { extractCursorFromInstructions, parseTweetsFromInstructions, parseUsersFromInstructions } from './twitter-client-utils.js';
 
 export interface TwitterClientListMethods {
   getOwnedLists(count?: number): Promise<ListsResult>;
   getListMemberships(count?: number): Promise<ListsResult>;
+  getListMembers(listId: string, count?: number, cursor?: string): Promise<ListMembersResult>;
   getListTimeline(listId: string, count?: number, options?: TimelineFetchOptions): Promise<SearchResult>;
   getAllListTimeline(listId: string, options?: TimelinePaginationOptions): Promise<SearchResult>;
+  addListMember(listId: string, userId: string): Promise<ListMutationResult>;
+  removeListMember(listId: string, userId: string): Promise<ListMutationResult>;
 }
 
 interface GraphqlListResult {
@@ -116,6 +119,21 @@ export function withLists<TBase extends AbstractConstructor<TwitterClientBase>>(
     private async getListTimelineQueryIds(): Promise<string[]> {
       const primary = await this.getQueryId('ListLatestTweetsTimeline');
       return Array.from(new Set([primary, '2TemLyqrMpTeAmysdbnVqw']));
+    }
+
+    private async getListAddMemberQueryIds(): Promise<string[]> {
+      const primary = await this.getQueryId('ListAddMember');
+      return Array.from(new Set([primary, 'EadD8ivrhZhYQr2pDmCpjA']));
+    }
+
+    private async getListRemoveMemberQueryIds(): Promise<string[]> {
+      const primary = await this.getQueryId('ListRemoveMember');
+      return Array.from(new Set([primary, 'B5tMzrMYuFHJex_4EXFTSw']));
+    }
+
+    private async getListMembersQueryIds(): Promise<string[]> {
+      const primary = await this.getQueryId('ListMembers');
+      return Array.from(new Set([primary, 'YDKTAwm9knyfTvkf9ac3KQ']));
     }
 
     /**
@@ -327,6 +345,99 @@ export function withLists<TBase extends AbstractConstructor<TwitterClientBase>>(
     }
 
     /**
+     * Get members of a list
+     */
+    async getListMembers(listId: string, count = 20, cursor?: string): Promise<ListMembersResult> {
+      const features = buildListsFeatures();
+
+      const variables: Record<string, unknown> = {
+        listId,
+        count,
+      };
+      if (cursor) {
+        variables.cursor = cursor;
+      }
+
+      const params = new URLSearchParams({
+        variables: JSON.stringify(variables),
+        features: JSON.stringify(features),
+      });
+
+      const tryOnce = async () => {
+        let lastError: string | undefined;
+        let had404 = false;
+        const queryIds = await this.getListMembersQueryIds();
+
+        for (const queryId of queryIds) {
+          const url = `${TWITTER_API_BASE}/${queryId}/ListMembers?${params.toString()}`;
+
+          try {
+            const response = await this.fetchWithTimeout(url, {
+              method: 'GET',
+              headers: this.getHeaders(),
+            });
+
+            if (response.status === 404) {
+              had404 = true;
+              lastError = `HTTP ${response.status}`;
+              continue;
+            }
+
+            if (!response.ok) {
+              const text = await response.text();
+              return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404 };
+            }
+
+            const data = (await response.json()) as {
+              data?: {
+                list?: {
+                  members_timeline?: {
+                    timeline?: {
+                      instructions?: Array<{ type?: string; entries?: Array<unknown> }>;
+                    };
+                  };
+                };
+              };
+              errors?: Array<{ message: string }>;
+            };
+
+            if (data.errors && data.errors.length > 0) {
+              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404 };
+            }
+
+            const instructions = data.data?.list?.members_timeline?.timeline?.instructions;
+            const members = parseUsersFromInstructions(instructions);
+            const nextCursor = extractCursorFromInstructions(
+              instructions as Array<{ entries?: Array<{ content?: unknown }> }> | undefined,
+            );
+
+            return { success: true as const, members, nextCursor, had404 };
+          } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+          }
+        }
+
+        return { success: false as const, error: lastError ?? 'Unknown error fetching list members', had404 };
+      };
+
+      const firstAttempt = await tryOnce();
+      if (firstAttempt.success) {
+        return { success: true, members: firstAttempt.members, nextCursor: firstAttempt.nextCursor };
+      }
+
+      if (firstAttempt.had404) {
+        await this.refreshQueryIds();
+        const secondAttempt = await tryOnce();
+        if (secondAttempt.success) {
+          return { success: true, members: secondAttempt.members, nextCursor: secondAttempt.nextCursor };
+        }
+        return { success: false, error: secondAttempt.error };
+      }
+
+      return { success: false, error: firstAttempt.error };
+    }
+
+    /**
      * Get tweets from a list timeline
      */
     async getListTimeline(listId: string, count = 20, options: TimelineFetchOptions = {}): Promise<SearchResult> {
@@ -485,6 +596,148 @@ export function withLists<TBase extends AbstractConstructor<TwitterClientBase>>(
       }
 
       return { success: true, tweets, nextCursor };
+    }
+
+    /**
+     * Add a user to a list
+     */
+    async addListMember(listId: string, userId: string): Promise<ListMutationResult> {
+      const features = buildListsFeatures();
+
+      const tryOnce = async () => {
+        let lastError: string | undefined;
+        let had404 = false;
+        const queryIds = await this.getListAddMemberQueryIds();
+
+        for (const queryId of queryIds) {
+          const url = `${TWITTER_API_BASE}/${queryId}/ListAddMember`;
+          const variables = { listId, userId };
+
+          try {
+            const response = await this.fetchWithTimeout(url, {
+              method: 'POST',
+              headers: this.getHeaders(),
+              body: JSON.stringify({ variables, features, queryId }),
+            });
+
+            if (response.status === 404) {
+              had404 = true;
+              lastError = `HTTP ${response.status}`;
+              continue;
+            }
+
+            if (!response.ok) {
+              const text = await response.text();
+              return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404 };
+            }
+
+            const data = (await response.json()) as {
+              data?: {
+                list?: GraphqlListResult;
+              };
+              errors?: Array<{ message: string }>;
+            };
+
+            if (data.errors && data.errors.length > 0) {
+              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404 };
+            }
+
+            const list = data.data?.list ? parseList(data.data.list) : undefined;
+            return { success: true as const, list: list ?? undefined, had404 };
+          } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+          }
+        }
+
+        return { success: false as const, error: lastError ?? 'Unknown error adding list member', had404 };
+      };
+
+      const firstAttempt = await tryOnce();
+      if (firstAttempt.success) {
+        return { success: true, list: firstAttempt.list };
+      }
+
+      if (firstAttempt.had404) {
+        await this.refreshQueryIds();
+        const secondAttempt = await tryOnce();
+        if (secondAttempt.success) {
+          return { success: true, list: secondAttempt.list };
+        }
+        return { success: false, error: secondAttempt.error };
+      }
+
+      return { success: false, error: firstAttempt.error };
+    }
+
+    /**
+     * Remove a user from a list
+     */
+    async removeListMember(listId: string, userId: string): Promise<ListMutationResult> {
+      const features = buildListsFeatures();
+
+      const tryOnce = async () => {
+        let lastError: string | undefined;
+        let had404 = false;
+        const queryIds = await this.getListRemoveMemberQueryIds();
+
+        for (const queryId of queryIds) {
+          const url = `${TWITTER_API_BASE}/${queryId}/ListRemoveMember`;
+          const variables = { listId, userId };
+
+          try {
+            const response = await this.fetchWithTimeout(url, {
+              method: 'POST',
+              headers: this.getHeaders(),
+              body: JSON.stringify({ variables, features, queryId }),
+            });
+
+            if (response.status === 404) {
+              had404 = true;
+              lastError = `HTTP ${response.status}`;
+              continue;
+            }
+
+            if (!response.ok) {
+              const text = await response.text();
+              return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404 };
+            }
+
+            const data = (await response.json()) as {
+              data?: {
+                list?: GraphqlListResult;
+              };
+              errors?: Array<{ message: string }>;
+            };
+
+            if (data.errors && data.errors.length > 0) {
+              return { success: false as const, error: data.errors.map((e) => e.message).join(', '), had404 };
+            }
+
+            const list = data.data?.list ? parseList(data.data.list) : undefined;
+            return { success: true as const, list: list ?? undefined, had404 };
+          } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+          }
+        }
+
+        return { success: false as const, error: lastError ?? 'Unknown error removing list member', had404 };
+      };
+
+      const firstAttempt = await tryOnce();
+      if (firstAttempt.success) {
+        return { success: true, list: firstAttempt.list };
+      }
+
+      if (firstAttempt.had404) {
+        await this.refreshQueryIds();
+        const secondAttempt = await tryOnce();
+        if (secondAttempt.success) {
+          return { success: true, list: secondAttempt.list };
+        }
+        return { success: false, error: secondAttempt.error };
+      }
+
+      return { success: false, error: firstAttempt.error };
     }
   }
 
