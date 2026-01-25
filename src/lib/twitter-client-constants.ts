@@ -23,6 +23,7 @@ export const FALLBACK_QUERY_IDS = {
   UnfavoriteTweet: 'ZYKSe-w7KEslx3JhSIk5LA',
   CreateBookmark: 'aoDbu3RHznuiSkQ9aNM67Q',
   DeleteBookmark: 'Wlmlj2-xzyS1GN3a6cj-mQ',
+  bookmarkTweetToFolder: '4KHZvvNbHNf07bsgnL9gWA',
   TweetDetail: '97JF30KziU00483E_8elBA',
   SearchTimeline: 'M1jEez78PEfVfbQLvlWMvQ',
   UserArticlesTweets: '8zBy9h4L90aDL02RsBcCFg',
