@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { registerBookmarksCommand } from '../commands/bookmarks.js';
 import { registerCheckCommand } from '../commands/check.js';
+import { registerDeleteCommand } from '../commands/delete.js';
 import { registerFollowCommands } from '../commands/follow.js';
 import { registerHelpCommand } from '../commands/help.js';
 import { registerHomeCommand } from '../commands/home.js';
@@ -19,6 +20,7 @@ import { type CliContext, collectCookieSource } from './shared.js';
 export const KNOWN_COMMANDS = new Set([
   'tweet',
   'reply',
+  'delete',
   'query-ids',
   'read',
   'replies',
@@ -141,6 +143,7 @@ export function createProgram(ctx: CliContext): Command {
   registerHelpCommand(program, ctx);
   registerQueryIdsCommand(program, ctx);
   registerPostCommands(program, ctx);
+  registerDeleteCommand(program, ctx);
   registerReadCommands(program, ctx);
   registerSearchCommands(program, ctx);
   registerBookmarksCommand(program, ctx);
