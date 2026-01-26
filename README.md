@@ -166,6 +166,25 @@ Fields:
 - `locationAccurate`
 - `learnMoreUrl`
 
+## MCP Server
+
+Run `bird --mcp` to start the Model Context Protocol server for AI assistants like Cursor or Claude Desktop.
+
+Add to `~/.cursor/mcp.json` or Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "bird": {
+      "command": "bird",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+Automatically uses browser cookies (same as CLI).
+
 ## Commands
 
 - `bird tweet "<text>"` — post a new tweet.

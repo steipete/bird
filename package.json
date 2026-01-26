@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "bird": "dist/cli.js"
+    "bird": "dist/cli.js",
+    "bird-mcp": "dist/mcp/index.js"
   },
   "files": [
     "dist",
@@ -20,6 +21,8 @@
     "build:binary": "BIRD_VERSION=$(node -p \"require('./package.json').version\") BIRD_GIT_SHA=$(git rev-parse --short=8 HEAD 2>/dev/null || true) bun build --compile --minify --env=BIRD_* src/cli.ts --outfile bird",
     "dev": "tsx src/index.ts",
     "bird": "pnpm run build:dist && node dist/cli.js",
+    "mcp": "pnpm run build:dist && node dist/mcp/index.js",
+    "mcp:dev": "tsx src/mcp/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "pnpm run build:dist && BIRD_LIVE=1 vitest run --no-file-parallelism tests/live/live.test.ts",
@@ -35,6 +38,7 @@
     "graphql:update": "tsx scripts/update-query-ids.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "@steipete/sweet-cookie": "0.1.0",
     "commander": "^14.0.2",
     "json5": "^2.2.3",

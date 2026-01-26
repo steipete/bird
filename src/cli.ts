@@ -8,6 +8,7 @@
  *   bird reply <tweet-id> "This is a reply"
  *   bird reply <tweet-url> "This is a reply"
  *   bird read <tweet-id-or-url>
+ *   bird --mcp  (start MCP server)
  */
 
 import { createProgram, KNOWN_COMMANDS } from './cli/program.js';
@@ -15,6 +16,15 @@ import { createCliContext } from './cli/shared.js';
 import { resolveCliInvocation } from './lib/cli-args.js';
 
 const rawArgs: string[] = process.argv.slice(2);
+
+// Check for MCP mode before anything else
+if (rawArgs.includes('--mcp') || rawArgs.includes('-mcp')) {
+  import('./mcp/index.js').catch((err) => {
+    console.error('Failed to start MCP server:', err);
+    process.exit(1);
+  });
+} else {
+
 const normalizedArgs: string[] = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
 
 const ctx = createCliContext(normalizedArgs);
@@ -33,3 +43,5 @@ if (argv) {
 } else {
   program.parse(['node', 'bird', ...normalizedArgs]);
 }
+
+} // end MCP else block
