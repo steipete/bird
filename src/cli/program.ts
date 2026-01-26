@@ -105,7 +105,13 @@ export function createProgram(ctx: CliContext): Command {
   program.addHelpText(
     'afterAll',
     () =>
-      `\n\n${ctx.colors.section('Config')}\n${ctx.colors.muted(
+      `\n\n${ctx.colors.section('MCP Server')}\n${ctx.colors.muted(
+        `  Run ${ctx.colors.command('bird --mcp')} to start the Model Context Protocol server`,
+      )}\n${ctx.colors.muted(
+        `  Use with Cursor, Claude Desktop, or other MCP clients for AI-powered Twitter access`,
+      )}\n${ctx.colors.muted(
+        `  Automatically uses browser cookies (same as CLI) - no extra config needed`,
+      )}\n\n${ctx.colors.section('Config')}\n${ctx.colors.muted(
         `  Reads ${ctx.colors.argument('~/.config/bird/config.json5')} and ${ctx.colors.argument('./.birdrc.json5')} (JSON5)`,
       )}\n${ctx.colors.muted(
         `  Supports: chromeProfile, chromeProfileDir, firefoxProfile, cookieSource, cookieTimeoutMs, timeoutMs, quoteDepth`,
