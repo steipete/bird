@@ -265,6 +265,7 @@ Environment shortcuts:
 - `BIRD_TIMEOUT_MS`
 - `BIRD_COOKIE_TIMEOUT_MS`
 - `BIRD_QUOTE_DEPTH`
+- `BIRD_READ_ONLY` — set to `1` to block all write commands (`tweet`, `reply`, `follow`, `unfollow`, `unbookmark`). Useful when running bird for AI agents where you want to allow reading but prevent accidental posts.
 
 ## Output
 
