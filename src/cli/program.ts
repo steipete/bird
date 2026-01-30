@@ -16,6 +16,12 @@ import { registerUserCommands } from '../commands/users.js';
 import { getCliVersion } from '../lib/version.js';
 import { type CliContext, collectCookieSource } from './shared.js';
 
+/**
+ * Commands that perform write operations (tweet, reply, follow, etc.).
+ * When BIRD_READ_ONLY=1, these are blocked before execution.
+ */
+export const WRITE_COMMANDS = new Set(['tweet', 'reply', 'follow', 'unfollow', 'unbookmark']);
+
 export const KNOWN_COMMANDS = new Set([
   'tweet',
   'reply',
@@ -136,6 +142,16 @@ export function createProgram(ctx: CliContext): Command {
 
   program.hook('preAction', (_thisCommand, actionCommand) => {
     ctx.applyOutputFromCommand(actionCommand);
+
+    // Block write commands when BIRD_READ_ONLY is set.
+    const readOnly = process.env.BIRD_READ_ONLY === '1' || process.env.BIRD_READ_ONLY === 'true';
+    if (readOnly && WRITE_COMMANDS.has(actionCommand.name())) {
+      console.error(
+        `${ctx.p('err')}Read-only mode is enabled (BIRD_READ_ONLY=${process.env.BIRD_READ_ONLY}). ` +
+          `The '${actionCommand.name()}' command is blocked. Unset BIRD_READ_ONLY to allow write operations.`,
+      );
+      process.exit(1);
+    }
   });
 
   registerHelpCommand(program, ctx);
