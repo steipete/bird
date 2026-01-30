@@ -29,7 +29,8 @@ export function registerPostCommands(program: Command, ctx: CliContext): void {
     .command('tweet')
     .description('Post a new tweet')
     .argument('<text>', 'Tweet text')
-    .action(async (text: string) => {
+    .option('--quote <tweet-id-or-url>', 'Quote tweet: embed the given tweet')
+    .action(async (text: string, cmdOpts: { quote?: string }) => {
       const opts = program.opts();
       const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
       const quoteDepth = ctx.resolveQuoteDepthFromOptions(opts);
@@ -58,10 +59,14 @@ export function registerPostCommands(program: Command, ctx: CliContext): void {
 
       const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
       const mediaIds = await uploadMediaOrExit(client, media, ctx);
-      const result = await client.tweet(text, mediaIds);
+      const quoteTweetId = cmdOpts.quote ? ctx.extractTweetId(cmdOpts.quote) : undefined;
+      if (quoteTweetId) {
+        console.error(`${ctx.p('info')}Quoting tweet: ${quoteTweetId}`);
+      }
+      const result = await client.tweet(text, mediaIds, quoteTweetId);
 
       if (result.success) {
-        console.log(`${ctx.p('ok')}Tweet posted successfully!`);
+        console.log(`${ctx.p('ok')}${quoteTweetId ? 'Quote tweet' : 'Tweet'} posted successfully!`);
         console.log(formatTweetUrlLine(result.tweetId, ctx.getOutput()));
       } else {
         console.error(`${ctx.p('err')}Failed to post tweet: ${result.error}`);
