@@ -251,6 +251,9 @@ Example `~/.config/bird/config.json5`:
 
 ```json5
 {
+  // Auth tokens (avoids browser cookie extraction entirely)
+  authToken: "0a57edf...",
+  ct0: "88de293...",
   // Cookie source order for browser extraction (string or array)
   cookieSource: ["firefox", "safari"],
   chromeProfileDir: "/path/to/Chromium/Profile",
