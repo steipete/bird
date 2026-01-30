@@ -4,7 +4,7 @@ import { buildTweetCreateFeatures } from './twitter-client-features.js';
 import type { CreateTweetResponse, TweetResult } from './twitter-client-types.js';
 
 export interface TwitterClientPostingMethods {
-  tweet(text: string, mediaIds?: string[]): Promise<TweetResult>;
+  tweet(text: string, mediaIds?: string[], quoteTweetId?: string): Promise<TweetResult>;
   reply(text: string, replyToTweetId: string, mediaIds?: string[]): Promise<TweetResult>;
 }
 
@@ -20,8 +20,8 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
     /**
      * Post a new tweet
      */
-    async tweet(text: string, mediaIds?: string[]): Promise<TweetResult> {
-      const variables = {
+    async tweet(text: string, mediaIds?: string[], quoteTweetId?: string): Promise<TweetResult> {
+      const variables: Record<string, unknown> = {
         tweet_text: text,
         dark_request: false,
         media: {
@@ -30,6 +30,10 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
         },
         semantic_annotation_ids: [],
       };
+
+      if (quoteTweetId) {
+        variables.attachment_url = `https://x.com/i/web/status/${quoteTweetId}`;
+      }
 
       const features = buildTweetCreateFeatures();
 
