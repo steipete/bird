@@ -251,6 +251,9 @@ Example `~/.config/bird/config.json5`:
 
 ```json5
 {
+  // Auth tokens (avoids browser cookie extraction entirely)
+  authToken: "0a57edf...",
+  ct0: "88de293...",
   // Cookie source order for browser extraction (string or array)
   cookieSource: ["firefox", "safari"],
   chromeProfileDir: "/path/to/Chromium/Profile",
@@ -265,6 +268,7 @@ Environment shortcuts:
 - `BIRD_TIMEOUT_MS`
 - `BIRD_COOKIE_TIMEOUT_MS`
 - `BIRD_QUOTE_DEPTH`
+- `BIRD_READ_ONLY` — set to `1` to block all write commands (`tweet`, `reply`, `follow`, `unfollow`, `unbookmark`). Useful when running bird for AI agents where you want to allow reading but prevent accidental posts.
 
 ## Output
 
