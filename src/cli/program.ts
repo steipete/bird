@@ -4,6 +4,7 @@ import { registerCheckCommand } from '../commands/check.js';
 import { registerFollowCommands } from '../commands/follow.js';
 import { registerHelpCommand } from '../commands/help.js';
 import { registerHomeCommand } from '../commands/home.js';
+import { registerLikeCommands } from '../commands/like.js';
 import { registerListsCommand } from '../commands/lists.js';
 import { registerNewsCommand } from '../commands/news.js';
 import { registerPostCommands } from '../commands/post.js';
@@ -31,8 +32,10 @@ export const KNOWN_COMMANDS = new Set([
   'unfollow',
   'following',
   'followers',
+  'like',
   'likes',
   'lists',
+  'unlike',
   'list-timeline',
   'home',
   'user-tweets',
@@ -146,6 +149,7 @@ export function createProgram(ctx: CliContext): Command {
   registerBookmarksCommand(program, ctx);
   registerUnbookmarkCommand(program, ctx);
   registerFollowCommands(program, ctx);
+  registerLikeCommands(program, ctx);
   registerListsCommand(program, ctx);
   registerHomeCommand(program, ctx);
   registerUserCommands(program, ctx);
