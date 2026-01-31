@@ -38,7 +38,8 @@
     "@steipete/sweet-cookie": "0.1.0",
     "commander": "^14.0.2",
     "json5": "^2.2.3",
-    "kleur": "^4.1.5"
+    "kleur": "^4.1.5",
+    "undici": "^7.19.2"
   },
   "pnpm": {
     "patchedDependencies": {

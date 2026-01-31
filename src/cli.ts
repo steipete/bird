@@ -13,6 +13,9 @@
 import { createProgram, KNOWN_COMMANDS } from './cli/program.js';
 import { createCliContext } from './cli/shared.js';
 import { resolveCliInvocation } from './lib/cli-args.js';
+import { installGlobalProxy } from './lib/proxy.js';
+
+installGlobalProxy();
 
 const rawArgs: string[] = process.argv.slice(2);
 const normalizedArgs: string[] = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
