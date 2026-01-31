@@ -1,5 +1,67 @@
+diff --git a/dist/providers/chromeSqlite/linuxKeyring.js b/dist/providers/chromeSqlite/linuxKeyring.js
+index bb113a53ebe123dd37b38f451f021a8aedb0e5bc..d9b0ec0487267ccce19f814398224919f61baf9d 100644
+--- a/dist/providers/chromeSqlite/linuxKeyring.js
++++ b/dist/providers/chromeSqlite/linuxKeyring.js
+@@ -23,14 +23,19 @@ export async function getLinuxChromiumSafeStoragePassword(options) {
+     // `basic` means "don't try keyrings" (Chrome will fall back to older/less-secure schemes on some setups).
+     if (backend === 'basic')
+         return { password: '', warnings };
+-    const service = options.app === 'edge' ? 'Microsoft Edge Safe Storage' : 'Chrome Safe Storage';
+-    const account = options.app === 'edge' ? 'Microsoft Edge' : 'Chrome';
++    const service = options.app === 'edge' ? 'Microsoft Edge Safe Storage' : options.app === 'brave' ? 'Brave Safe Storage' : 'Chrome Safe Storage';
++    const account = options.app === 'edge' ? 'Microsoft Edge' : options.app === 'brave' ? 'Brave' : 'Chrome';
+     const folder = `${account} Keys`;
++    const application = options.app === 'edge' ? 'msedge' : options.app === 'brave' ? 'brave' : 'chrome';
+     if (backend === 'gnome') {
+         // GNOME keyring: `secret-tool` is the simplest way to read libsecret entries.
++        // Try service/account first (older Chromium), then application attribute (newer Chromium v2 schema).
+         const res = await execCapture('secret-tool', ['lookup', 'service', service, 'account', account], { timeoutMs: 3_000 });
+         if (res.code === 0)
+             return { password: res.stdout.trim(), warnings };
++        const res2 = await execCapture('secret-tool', ['lookup', 'application', application], { timeoutMs: 3_000 });
++        if (res2.code === 0)
++            return { password: res2.stdout.trim(), warnings };
+         warnings.push('Failed to read Linux keyring via secret-tool; v11 cookies may be unavailable.');
+         return { password: '', warnings };
+     }
+@@ -62,6 +67,12 @@ export async function getLinuxChromeSafeStoragePassword(options = {}) {
+         args.backend = options.backend;
+     return await getLinuxChromiumSafeStoragePassword(args);
+ }
++export async function getLinuxBraveSafeStoragePassword(options = {}) {
++    const args = { app: 'brave' };
++    if (options.backend !== undefined)
++        args.backend = options.backend;
++    return await getLinuxChromiumSafeStoragePassword(args);
++}
+ function parseLinuxKeyringBackend() {
+     const raw = readEnv('SWEET_COOKIE_LINUX_KEYRING');
+     if (!raw)
+diff --git a/dist/providers/chromeSqliteLinux.js b/dist/providers/chromeSqliteLinux.js
+index 620e7ef28af918c6934a82f8efab03c6b6f94dfa..4e34e371ae28cd8e9b8a1ba876e5a51086940648 100644
+--- a/dist/providers/chromeSqliteLinux.js
++++ b/dist/providers/chromeSqliteLinux.js
+@@ -1,5 +1,5 @@
+ import { decryptChromiumAes128CbcCookieValue, deriveAes128CbcKeyFromPassword, } from './chromeSqlite/crypto.js';
+-import { getLinuxChromeSafeStoragePassword } from './chromeSqlite/linuxKeyring.js';
++import { getLinuxChromeSafeStoragePassword, getLinuxBraveSafeStoragePassword } from './chromeSqlite/linuxKeyring.js';
+ import { getCookiesFromChromeSqliteDb } from './chromeSqlite/shared.js';
+ import { resolveChromiumCookiesDbLinux } from './chromium/linuxPaths.js';
+ export async function getCookiesFromChromeSqliteLinux(options, origins, allowlistNames) {
+@@ -12,7 +12,10 @@ export async function getCookiesFromChromeSqliteLinux(options, origins, allowlis
+     if (!dbPath) {
+         return { cookies: [], warnings: ['Chrome cookies database not found.'] };
+     }
+-    const { password, warnings: keyringWarnings } = await getLinuxChromeSafeStoragePassword();
++    const isBrave = dbPath.toLowerCase().includes('bravesoftware') || dbPath.toLowerCase().includes('brave-browser') || dbPath.toLowerCase().includes('brave browser');
++    const { password, warnings: keyringWarnings } = isBrave
++        ? await getLinuxBraveSafeStoragePassword()
++        : await getLinuxChromeSafeStoragePassword();
+     // Linux uses multiple schemes depending on distro/keyring availability.
+     // - v10 often uses the hard-coded "peanuts" password
+     // - v11 uses "Chrome Safe Storage" from the keyring (may be empty/unavailable)
 diff --git a/dist/providers/chromeSqliteMac.js b/dist/providers/chromeSqliteMac.js
-index 71c815f77378d03e07061976ac372b3a55a61ac4..b21c15640955a8e7faa8f1d6ea6fed7ca8f04ddb 100644
+index 71c815f77378d03e07061976ac372b3a55a61ac4..4b11bd31e7f19f032778eb3a66f7af87b6ee9504 100644
 --- a/dist/providers/chromeSqliteMac.js
 +++ b/dist/providers/chromeSqliteMac.js
 @@ -4,19 +4,37 @@ import { decryptChromiumAes128CbcCookieValue, deriveAes128CbcKeyFromPassword, }
@@ -54,7 +116,7 @@ index 71c815f77378d03e07061976ac372b3a55a61ac4..b21c15640955a8e7faa8f1d6ea6fed7c
          return { cookies: [], warnings };
      }
      // Chromium uses PBKDF2(password, "saltysalt", 1003, 16, sha1) for AES-128-CBC cookie values on macOS.
-@@ -46,14 +64,18 @@ export async function getCookiesFromChromeSqliteMac(options, origins, allowlistN
+@@ -46,11 +64,15 @@ export async function getCookiesFromChromeSqliteMac(options, origins, allowlistN
      result.warnings.unshift(...warnings);
      return result;
  }
@@ -71,6 +133,23 @@ index 71c815f77378d03e07061976ac372b3a55a61ac4..b21c15640955a8e7faa8f1d6ea6fed7c
          : [];
      const args = { roots };
      if (profile !== undefined)
-         args.profile = profile;
-     return resolveCookiesDbFromProfileOrRoots(args);
+diff --git a/dist/util/nodeSqlite.js b/dist/util/nodeSqlite.js
+index 68c344e810d0864e007e052848e20ab1975a0804..3b8fbde6f868cb4a582f6b7fc5794ce4a0428ea6 100644
+--- a/dist/util/nodeSqlite.js
++++ b/dist/util/nodeSqlite.js
+@@ -5,11 +5,11 @@ export function supportsReadBigInts() {
+     const minor = Number.parseInt(minorRaw ?? '', 10);
+     if (!Number.isFinite(major) || !Number.isFinite(minor))
+         return false;
+-    if (major > 24)
++    // readBigInts is available in Node >= 22.x (experimental sqlite) and >= 24.4 (stable).
++    // Without it, Chromium cookie timestamps exceed Number.MAX_SAFE_INTEGER and crash.
++    if (major >= 22)
+         return true;
+-    if (major < 24)
+-        return false;
+-    return minor >= 4;
++    return false;
  }
+ function shouldSuppressSqliteExperimentalWarning(warning, args) {
+     const message = typeof warning === 'string'
